@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "acallable"
+version = "0.0.1"
+authors = [
+  { name="Alan Justino", email="alan.justino@yahoo.com.br" },
+]
+description = "Allows the same function to have an async version selected automatically"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "Apache-2.0"
+license-files = ["LICEN[CS]E*"]
+
+[project.optional-dependencies]
+tests = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+]
+dev = ["acallable[tests]", "ruff>=0.6"]
+
+[project.urls]
+Homepage = "https://github.com/alanjds/acallable"
+Issues = "https://github.com/alanjds/acallable/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["acallable*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = ["-v", "-s", "-rxXs"]
