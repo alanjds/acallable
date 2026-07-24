@@ -3,6 +3,32 @@ import pytest
 from acallable import awaitable
 
 
+## Functions used all around on tests
+@awaitable
+def fetch(url: str) -> str:
+    return f"sync: {url}"
+
+
+@fetch.acall
+async def fetch_async(url: str) -> str:
+    return f"async: {url}"
+
+
+@awaitable
+def compute(x: int) -> int:
+    return x * 2
+
+
+## Class used all around on tests
+@awaitable
+class ClassFetcher:
+    def __call__(self, url: str) -> str:
+        return f"sync: {url}"
+
+    async def __acall__(self, url: str) -> str:
+        return f"async: {url}"
+
+
 def test_simple_function():
     @awaitable
     def greet(name: str) -> str:
@@ -13,13 +39,6 @@ def test_simple_function():
 
 @pytest.mark.asyncio
 async def test_function_with_async_body():
-    @awaitable
-    def fetch(url: str) -> str:
-        return f"sync: {url}"
-
-    @fetch.acall
-    async def fetch_async(url: str) -> str:
-        return f"async: {url}"
 
     # 1. Direct call in async context returns coroutine
     result = fetch("example.com")
@@ -32,9 +51,6 @@ async def test_function_with_async_body():
 
 @pytest.mark.asyncio
 async def test_default_async_wrapper():
-    @awaitable
-    def compute(x: int) -> int:
-        return x * 2
 
     # Direct call in async context returns coroutine
     result = compute(3)
@@ -46,25 +62,14 @@ async def test_default_async_wrapper():
 
 def test_default_async_wrapper_sync_context():
     """In sync context, direct call returns sync result."""
-    @awaitable
-    def compute(x: int) -> int:
-        return x * 2
-
     assert compute(3) == 6
     # In sync context no await needed
 
 
 @pytest.mark.asyncio
 async def test_proper_class_decoration():
-    @awaitable
-    class ProperFetcher:
-        def __call__(self, url: str) -> str:
-            return f"sync: {url}"
 
-        async def __acall__(self, url: str) -> str:
-            return f"async: {url}"
-
-    fetcher = ProperFetcher()
+    fetcher = ClassFetcher()
 
     # Direct call in async context returns coroutine
     result = fetcher("test")
@@ -76,10 +81,6 @@ async def test_proper_class_decoration():
 
 @pytest.mark.asyncio
 async def test_async_context_in_asyncio_gather():
-    @awaitable
-    def compute(i: int) -> int:
-        return i * 2
-
     results = await asyncio.gather(*(compute(i) for i in range(3)))
     assert results == [0, 2, 4]
 
