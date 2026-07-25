@@ -70,7 +70,7 @@ def test_inheritance():
 
 def test_inheritance_acall():
     class DerivedClassAsync(BaseClass):
-        def __acall__(self, value: str) -> str:
+        async def __acall__(self, value: str) -> str:
             return f"derived async: {value}"
 
     derived = DerivedClassAsync()
@@ -82,7 +82,7 @@ def test_inheritance_acall():
     async def test_async():
         result = derived("test")
         assert not isinstance(result, str)
-        assert await result == "base async: test"
+        assert await result == "derived async: test"
 
     asyncio.run(test_async())
 
@@ -114,7 +114,7 @@ def test_inheritance_dundercall_acall():
         def __call__(self, value: str) -> str:
             return f"derived sync: {value}"
 
-        def __acall__(self, value: str) -> str:
+        async def __acall__(self, value: str) -> str:
             return f"derived async: {value}"
 
     derived = DerivedClassAll()
