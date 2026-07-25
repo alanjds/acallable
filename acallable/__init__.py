@@ -60,29 +60,27 @@ class _Awaitable_Function:
 
 
 def _install_class_dispatcher(klass: type) -> None:
-    """Install a context-aware __call__ dispatcher on a class that defines its own __call__."""
-    # Grab the subclass's own __call__ from its __dict__ (not via MRO)
+    """Install a context-aware __call__ dispatcher on a class that defines its own __call__.
+
+    The sync path captures the subclass's own ``__call__`` from its ``__dict__``
+    (not via MRO, so we get the original method, not a parent dispatcher).
+
+    The async path looks up ``__acall__`` dynamically via MRO (``self.__acall__``),
+    so subclass overrides are respected automatically.
+    """
     original_call = klass.__dict__["__call__"]
-    # Use MRO for __acall__ — picks up parent's if not overridden in this class
-    original_acall = getattr(klass, "__acall__", None)
 
     def dispatcher(self, *args, **kwargs):
         if _is_async_context():
-            if inspect.iscoroutinefunction(original_acall):
-                return original_acall(self, *args, **kwargs)
-            else:
-                # Wrap sync __acall__ in a coroutine
-                async def async_wrapper():
-                    return original_acall(self, *args, **kwargs)
-
-                return async_wrapper()
+            # Dynamic MRO lookup: subclass overrides are honoured.
+            return self.__acall__(*args, **kwargs)
         return original_call(self, *args, **kwargs)
 
     klass.__call__ = dispatcher
 
 
-def _make_init_subclass_hook(original_call, original_acall):
-    """Create an __init_subclass__ hook that wraps subclass __call__ when overridden."""
+def _make_init_subclass_hook():
+    """Create an `__init_subclass__` hook that wraps subclass `__call__` when overridden."""
 
     def init_subclass_hook(cls, **kwargs):
         # Only re-wrap when the subclass defines its own __call__
@@ -123,9 +121,12 @@ def _as_awaitable_type(klass: type) -> type:
         namespace.pop(key, None)
 
     # Context-aware __call__ dispatcher for the class body
+    # Sync path: use captured original_call.
+    # Async path: dynamic MRO lookup so subclasses that only override
+    # __acall__ (without touching __call__) still get their version used.
     def dispatcher(self, *args, **kwargs):
         if _is_async_context():
-            return original_acall(self, *args, **kwargs)
+            return self.__acall__(*args, **kwargs)
         else:
             return original_call(self, *args, **kwargs)
 
@@ -134,8 +135,7 @@ def _as_awaitable_type(klass: type) -> type:
 
     # Define __init_subclass__ in the body so Python 3.12+ properly
     # dispatches it with the new subclass as the argument.
-    init_subclass_hook = _make_init_subclass_hook(original_call, original_acall)
-    namespace["__init_subclass__"] = init_subclass_hook
+    namespace["__init_subclass__"] = _make_init_subclass_hook()
 
     # Recreate the class: same name, same bases, but with our body-defined hooks.
     # This preserves isinstance checks and __class__ identity because the
