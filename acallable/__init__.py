@@ -1,3 +1,4 @@
+from typing import Callable
 import sys
 import inspect
 
@@ -13,21 +14,40 @@ def _is_async_context():
     return False
 
 
-class _Awaitable:
-    def __init__(self, obj):
-        self._obj = obj
-        if isinstance(obj, type):
-            self._is_class = True
-            self._original_class = obj
-            self._original_acall = getattr(obj, "__acall__", None)
-            self._original_class.__call__ = self._create_dispatcher(
-                self._original_class
-            )
-            self._original_class.__init_subclass__ = self._create_init_subclass_hook()
+class _Awaitable_Function:
+    def __init__(self, fn: Callable):
+        # Default async as the wrapped sync
+        async def __acall__(*args, **kwargs):
+            return fn(*args, **kwargs)
+
+        self._sync_func: Callable = fn
+        self._async_func: Callable = __acall__
+
+    @property
+    def sync(self):
+        return self._sync_func
+
+    @property
+    def __acall__(self):
+        return self._async_func
+
+    def __call__(self, *args, **kwargs):
+        if _is_async_context():
+            return self.__acall__(*args, **kwargs)
         else:
-            self._is_class = False
-            self._func = obj
-            self._acall_func = None
+            return self.sync(*args, **kwargs)
+
+    def acall(self, fn: Callable):
+        """Used like @property.set"""
+        self._async_func = fn
+        return self
+
+    def __getattr__(self, name):
+        return getattr(self._sync_func, name)
+
+
+def _as_awaitable_type(klass: type) -> type:
+    raise NotImplementedError()
 
     def _create_dispatcher(self, cls):
         original_call = cls.__call__ if hasattr(cls, "__call__") else None
@@ -58,50 +78,10 @@ class _Awaitable:
 
         return init_subclass_hook
 
-    def __call__(self, *args, **kwargs):
-        if self._is_class:
-            return self._original_class(*args, **kwargs)
-        if _is_async_context():
-            if self._acall_func is not None:
-                return self._acall_func(*args, **kwargs)
-            return self._func(*args, **kwargs)
-        return self._func(*args, **kwargs)
-
-    def register_acall(self, async_func):
-        self._acall_func = async_func
-        self._original_acall = async_func
-        return async_func
-
-    @property
-    def acall(self):
-        if not hasattr(self, "_acall_decorator"):
-
-            def _acall_decorator(fn):
-                self._acall_func = fn
-                self._original_acall = fn
-                return fn
-
-            self._acall_decorator = _acall_decorator
-        return self._acall_decorator
-
-    @property
-    def sync(self):
-        if self._is_class:
-            return self._original_class
-        return self._func
-
-    @property
-    def __acall__(self):
-        if self._is_class:
-            return self._original_acall
-        return self._acall_func
-
-    def __getattr__(self, name):
-        if self._is_class:
-            return getattr(self._original_class, name)
-        return getattr(self._func, name)
-
 
 # Public decorator instance - need to make it callable to support @ syntax
 def awaitable(obj):
-    return _Awaitable(obj)
+    if isinstance(obj, type):
+        return _as_awaitable_type(obj)
+    else:
+        return _Awaitable_Function(obj)
