@@ -66,13 +66,13 @@ def _install_class_dispatcher(klass: type) -> None:
     """Install a context-aware __call__ dispatcher on a class that defines its own __call__.
 
     The sync path captures the subclass's own `__call__` from its `__dict__`
-    & stores in `__awaitable_sync__` so a subclass can find the original via MRO.
+    & stores in `__acallable_sync__` so a subclass can find the original via MRO.
 
     The async path looks up `__acall__` dynamically via MRO (`self.__acall__`),
     making subclasse overrides being respected automatically.
     """
     original_call: Callable = klass.__dict__["__call__"]
-    klass.__awaitable_sync__ = original_call
+    klass.__acallable_sync__ = original_call
 
     @functools.wraps(original_call)
     def dispatcher(self, *args, **kwargs):
@@ -95,15 +95,15 @@ def _make_init_subclass_hook():
 
 def _as_awaitable_type(klass: type) -> type:
     # If the class or parent has already decorated, its true
-    # the original __call__ is stored in __awaitable_sync__
-    original_call = getattr(klass, "__awaitable_sync__", klass.__call__)
+    # the original __call__ is stored in __acallable_sync__
+    original_call = getattr(klass, "__acallable_sync__", klass.__call__)
 
     original_acall = getattr(klass, "__acall__", None)
     if original_acall is None:
         # No __acall__ -> wrap __call__ in a coro
         @functools.wraps(original_call)
         async def __acall__(self, *args, **kwargs):
-            return self.__awaitable_sync__(*args, **kwargs)
+            return self.__acallable_sync__(*args, **kwargs)
 
         new_acall = __acall__
     else:
@@ -129,7 +129,7 @@ def _as_awaitable_type(klass: type) -> type:
 
     # Store the original sync call so subclasses decorated with @awaitable
     # can find it through MRO instead of capturing a parent dispatcher.
-    namespace["__awaitable_sync__"] = original_call
+    namespace["__acallable_sync__"] = original_call
 
     # Context-aware __call__ dispatcher for the class body
     # Sync path: use captured original_call.
