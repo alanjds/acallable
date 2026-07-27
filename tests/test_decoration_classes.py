@@ -1,5 +1,7 @@
 import asyncio
+
 import pytest
+
 from acallable import awaitable
 
 
@@ -41,171 +43,101 @@ async def test_full_class_decoration_async_context():
 
 
 @awaitable
-class BaseClass:
-    def __call__(self, value: str) -> str:
-        return f"base sync: {value}"
+class BaseClass1:
+    def __call__(self) -> str:
+        return "base_sync"
 
-    async def __acall__(self, value: str) -> str:
-        return f"base async: {value}"
-
-def test_inheritance():
-    """Test that inheritance works as documented."""
-    base = BaseClass()
-
-    class DerivedClass(BaseClass):
-        pass
-
-    derived = DerivedClass()
-
-    # Inherited sync behavior
-    assert derived("test") == "base sync: test"
-
-    # Inherited async behavior
-    async def test_async():
-        result = derived("test")
-        assert not isinstance(result, str)
-        assert await result == "base async: test"
-
-    asyncio.run(test_async())
-
-def test_inheritance_acall():
-    class DerivedClassAsync(BaseClass):
-        async def __acall__(self, value: str) -> str:
-            return f"derived async: {value}"
-
-    derived = DerivedClassAsync()
-
-    # Inherited sync behavior
-    assert derived("test") == "base sync: test"
-
-    # Inherited async behavior
-    async def test_async():
-        result = derived("test")
-        assert not isinstance(result, str)
-        assert await result == "derived async: test"
-
-    asyncio.run(test_async())
-
-
-def test_inheritance_dundercall():
-
-    class DerivedClassSync(BaseClass):
-        def __call__(self, value: str) -> str:
-            return f"derived sync: {value}"
-
-    derived = DerivedClassSync()
-
-    # Inherited sync behavior
-    assert derived("test") == "derived sync: test"
-
-    # Inherited async behavior
-    async def test_async():
-        result = derived("test")
-        assert not isinstance(result, str)
-        assert await result == "base async: test"
-
-    asyncio.run(test_async())
-
-
-
-def test_inheritance_dundercall_acall():
-
-    class DerivedClassAll(BaseClass):
-        def __call__(self, value: str) -> str:
-            return f"derived sync: {value}"
-
-        async def __acall__(self, value: str) -> str:
-            return f"derived async: {value}"
-
-    derived = DerivedClassAll()
-
-    # Inherited sync behavior
-    assert derived("test") == "derived sync: test"
-
-    # Inherited async behavior
-    async def test_async():
-        result = derived("test")
-        assert not isinstance(result, str)
-        assert await result == "derived async: test"
-
-    asyncio.run(test_async())
-
-# --- Test 8: Default async wrapper without explicit @acall ---
-
-@awaitable
-class SimpleFetcher:
-    def __call__(self, msg: str) -> str:
-        return f"sync: {msg}"
-    # No __acall__ defined - should default to wrapping
-
-def test_default_async_wrapper_for_class():
-    """Test class without explicit __acall__ gets default wrapper."""
-    fetcher = SimpleFetcher()
-
-    # Sync context: direct call returns sync result
-    assert fetcher("hello") == "sync: hello"
-
-    # Async context: should return coroutine
-    async def test_async():
-        result = fetcher("hello")
-        assert not isinstance(result, str)
-        assert await result == "sync: hello"
-
-    asyncio.run(test_async())
-
-# --- Test 11: @awaitable applied to a subclass that only overrides __acall__ ---
+    async def __acall__(self) -> str:
+        return "base_async"
 
 
 @awaitable
 class BaseClass2:
-    def __call__(self, value: str) -> str:
-        return f"base sync: {value}"
-
-    async def __acall__(self, value: str) -> str:
-        return f"base async: {value}"
+    def __call__(self) -> str:
+        return "base_sync"
+    # No __acall__ defined - should default to wrapping
 
 
-@awaitable
+class DerivedClass1(BaseClass1):
+    pass
+
+
 class DerivedClass2(BaseClass2):
-    async def __acall__(self, value: str) -> str:
-        return f"derived async: {value}"
+    pass
 
 
-def test_decorated_subclass_acall_only_sync():
-    """@awaitable on a subclass that only overrides __acall__ — sync path."""
-    derived = DerivedClass2()
-    assert derived("test") == "base sync: test"
+class DerivedClass12(BaseClass1):
+    async def __acall__(self) -> str:
+        return "derived_async"
+    # super defined __call__. Use it
 
 
-@pytest.mark.asyncio
-async def test_decorated_subclass_acall_only_async():
-    """@awaitable on a subclass that only overrides __acall__ — async path."""
-    derived = DerivedClass2()
-    result = await derived("test")
-    assert result == "derived async: test"
+class DerivedClass22(BaseClass2):
+    async def __acall__(self) -> str:
+        return "derived_async"
+    # super defined __call__. Use it
 
 
-# --- Test 12: @awaitable applied to a subclass that overrides both ---
+class DerivedClass13(BaseClass1):
+    def __call__(self) -> str:
+        return "derived_sync"
+    # super defined __acall__. Use it
 
 
-@awaitable
-class DerivedClassAll2(BaseClass2):
-    def __call__(self, value: str) -> str:
-        return f"derived sync: {value}"
-
-    async def __acall__(self, value: str) -> str:
-        return f"derived async: {value}"
+class DerivedClass23(BaseClass2):
+    def __call__(self) -> str:
+        return "derived_sync"
+    # super have no __acall__. Wrap our __call__
 
 
-def test_decorated_subclass_both_sync():
-    """@awaitable on a subclass that overrides both — sync path."""
-    derived = DerivedClassAll2()
-    assert derived("test") == "derived sync: test"
+class DerivedClass14(BaseClass1):
+    def __call__(self) -> str:
+        return "derived_sync"
+
+    async def __acall__(self) -> str:
+        return "derived_async"
 
 
-@pytest.mark.asyncio
-async def test_decorated_subclass_both_async():
-    """@awaitable on a subclass that overrides both — async path."""
-    derived = DerivedClassAll2()
-    result = await derived("test")
-    assert result == "derived async: test"
+class DerivedClass24(BaseClass2):
+    def __call__(self) -> str:
+        return "derived_sync"
+
+    async def __acall__(self) -> str:
+        return "derived_async"
+
+
+def test_identity():
+    base1 = BaseClass1()
+    assert isinstance(base1, BaseClass1)
+
+    base2 = BaseClass2()
+    assert isinstance(base2, BaseClass2)
+
+
+@pytest.mark.parametrize(('baseclass', 'derivedclass', 'sync_expected', 'async_expected'),
+    [
+    (BaseClass1, DerivedClass1, 'base_sync', 'base_async'),  # base defines both __call__ and __ acall__
+    (BaseClass2, DerivedClass2, 'base_sync', 'base_sync'),  # base defines only __call__
+    (BaseClass1, DerivedClass12, 'base_sync', 'derived_async'),  # derived defines only __acall__
+    (BaseClass2, DerivedClass22, 'base_sync', 'derived_async'),  # derived defines only __acall__
+    (BaseClass1, DerivedClass13, 'derived_sync', 'base_async'),  # derived w/ sync, base w/ both
+    (BaseClass2, DerivedClass23, 'derived_sync', 'derived_sync'),  # derived w/ sync, base w/ sync,
+    (BaseClass1, DerivedClass14, 'derived_sync', 'derived_async'),  # derived w/ both
+    (BaseClass2, DerivedClass24, 'derived_sync', 'derived_async'),  # derived w/ both
+])
+def test_inheritance(baseclass: type, derivedclass: type, sync_expected: str, async_expected: str):
+    """Test that inheritance works as documented."""
+
+    derived = derivedclass()
+    assert isinstance(derived, baseclass)
+
+    # Inherited sync behavior
+    assert derived() == sync_expected
+
+    # Inherited async behavior
+    async def test_async():
+        result = derived()
+        assert not isinstance(result, str)
+        assert await result == async_expected
+
+    asyncio.run(test_async())
