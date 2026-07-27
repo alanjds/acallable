@@ -83,76 +83,53 @@ def _install_class_dispatcher(klass: type) -> None:
     klass.__call__ = dispatcher
 
 
-def _make_init_subclass_hook():
-    """Apply an `__init_subclass__` hook wrapping subclass `__call__` when overridden."""
-
-    def init_subclass_hook(cls, **kwargs):
-        if "__call__" in cls.__dict__:
-            _install_class_dispatcher(cls)
-
-    return init_subclass_hook
-
-
 def _as_awaitable_type(klass: type) -> type:
-    # If the class or parent has already decorated, its true
-    # the original __call__ is stored in __acallable_sync__
+    """Decorated class `__call__` dispatches to `__acall__` if called from async.
+
+    The class' original __call__ is saved as `__acallable_sync__`,
+    an `__acall__` is created if not existing, and `__call__` is replaced
+    by something that detect being called from a `def` or `async def`.
+
+    `__init_subclass__` is also created or augmanted to make the subclasses
+    keep the behavior about `__call__` and `__acall__` transparently.
+    """
+    # If the class or a parent was already decorated, reuse its stored original
+    # sync callable instead of capturing our own dispatcher as the "original".
     original_call = getattr(klass, "__acallable_sync__", klass.__call__)
+    klass.__acallable_sync__ = original_call
 
     original_acall = getattr(klass, "__acall__", None)
     if original_acall is None:
-        # No __acall__ -> wrap __call__ in a coro
+        # No user-provided __acall__: auto-generate one that wraps __call__
         @functools.wraps(original_call)
         async def __acall__(self, *args, **kwargs):
             return self.__acallable_sync__(*args, **kwargs)
 
-        new_acall = __acall__
-    else:
-        new_acall = original_acall
+        klass.__acall__ = __acall__
 
-
-    # Build the namespace for the new class: copy everything from klass
-    # but inject our __call__ dispatcher and __init_subclass__ in the body
-    # so that inheritance works correctly (in Python 3.12+ __init_subclass__
-    # must be defined in the class body, not set dynamically).
-    namespace = dict(klass.__dict__)
-    # Remove meta-attributes that type.__new__ handles internally
-    for key in (
-        "__dict__",
-        "__weakref__",
-        "__module__",
-        "__qualname__",
-        "__doc__",
-        "__annotations__",
-        "__init_subclass__",  # we'll provide our own
-    ):
-        namespace.pop(key, None)
-
-    # Store the original sync call so subclasses decorated with @awaitable
-    # can find it through MRO instead of capturing a parent dispatcher.
-    namespace["__acallable_sync__"] = original_call
-
-    # Context-aware __call__ dispatcher for the class body
-    # Sync path: use captured original_call.
-    # Async path: dynamic MRO lookup so subclasses that only override
-    # __acall__ (without touching __call__) still get their version used.
     def dispatcher(self, *args, **kwargs):
         if _is_async_context():
             return self.__acall__(*args, **kwargs)
-        return original_call(self, *args, **kwargs)
+        return self.__acallable_sync__(*args, **kwargs)
 
-    namespace["__call__"] = dispatcher
-    namespace["__acall__"] = new_acall
+    klass.__call__ = dispatcher
 
-    # Define __init_subclass__ in the body so Python 3.12+ properly
-    # dispatches it with the new subclass as the argument.
-    namespace["__init_subclass__"] = _make_init_subclass_hook()
+    original_init_subclass = klass.__dict__.get("__init_subclass__", None)
 
-    # Recreate the class: same name, same bases, but with our body-defined hooks.
-    # This preserves isinstance checks and __class__ identity because the
-    # @awaitable decorator returns this new class and assigns it to the same name.
-    new_klass = type(klass.__name__, klass.__bases__, namespace)
+    if isinstance(original_init_subclass, classmethod):
+        original_init_subclass = original_init_subclass.__func__
 
-    return new_klass
+    @functools.wraps(original_init_subclass)
+    def combined(cls, **kwargs):
+        if original_init_subclass:
+            # Preexisting __init_subclass__:
+            original_init_subclass(cls, **kwargs)
+        if "__call__" in cls.__dict__:
+            _install_class_dispatcher(cls)
+
+    klass.__init_subclass__ = classmethod(combined)
+
+    return klass
 
 
 def awaitable(obj) -> Callable:

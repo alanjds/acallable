@@ -141,3 +141,80 @@ def test_inheritance(baseclass: type, derivedclass: type, sync_expected: str, as
         assert await result == async_expected
 
     asyncio.run(test_async())
+
+
+# --- Test: __init_subclass__ preservation on @awaitable classes ---
+@awaitable
+class BaseWithInitSubclass:
+    """Base that sets a class attribute via __init_subclass__."""
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        cls.marked = True
+
+    def __call__(self) -> str:
+        return "base"
+
+
+class DerivedWithMark(BaseWithInitSubclass):
+    def __call__(self) -> str:
+        return "derived"
+
+
+def test_init_subclass_hook_preserved():
+    """The user's own __init_subclass__ should still fire after @awaitable."""
+    assert DerivedWithMark.marked is True
+
+
+def test_init_subclass_hook_derived_dispatches():
+    """Derived class with __call__ override should still get the dispatcher."""
+    d = DerivedWithMark()
+    assert d() == "derived"
+
+    async def run():
+        result = d()
+        assert not isinstance(result, str)
+        assert await result == "derived"
+
+    asyncio.run(run())
+
+
+@awaitable
+class BaseWithInitSubclassKwarg:
+    """Base that accepts a keyword arg via __init_subclass__."""
+
+    def __init_subclass__(cls, tag=None, **kwargs):
+        super().__init_subclass__(**kwargs)
+        cls.tag = tag
+
+    def __call__(self) -> str:
+        return "base"
+
+
+class DerivedTagged(BaseWithInitSubclassKwarg, tag="hello"):
+    def __call__(self) -> str:
+        return "tagged"
+
+
+def test_init_subclass_hook_kwargs():
+    """Keyword arguments to __init_subclass__ should be forwarded."""
+    assert DerivedTagged.tag == "hello"
+    d = DerivedTagged()
+    assert d() == "tagged"
+
+
+# --- Test: __init__ preservation on @awaitable classes ---
+@awaitable
+class ClassWithInit:
+    def __init__(self, value: str):
+        self.value = value
+
+    def __call__(self) -> str:
+        return self.value
+
+
+def test_init_preserved():
+    """__init__ should work normally on @awaitable classes."""
+    obj = ClassWithInit("test_value")
+    assert obj.value == "test_value"
+    assert obj() == "test_value"
