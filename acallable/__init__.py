@@ -103,7 +103,7 @@ def _as_awaitable_type(klass: type) -> type:
         # No __acall__ -> wrap __call__ in a coro
         @functools.wraps(original_call)
         async def __acall__(self, *args, **kwargs):
-            return original_call(self, *args, **kwargs)
+            return self.__awaitable_sync__(*args, **kwargs)
 
         new_acall = __acall__
     else:
