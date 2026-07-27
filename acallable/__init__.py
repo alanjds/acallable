@@ -1,11 +1,14 @@
-from typing import Callable
-import sys
-import inspect
+from __future__ import annotations
+
 import functools
+import inspect
+import sys
+from collections.abc import Coroutine
+from typing import Callable
 
 
 def _is_async_context():
-    """Detect if current call stack is asynchronous."""
+    """Detect if current call place is asynchronous."""
     frame = sys._getframe()
     flags = inspect.CO_COROUTINE | inspect.CO_ASYNC_GENERATOR
     while frame is not None:
@@ -32,7 +35,7 @@ class _Awaitable_Function:
     def __acall__(self):
         return self._async_func
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> Callable | Coroutine:
         if _is_async_context():
             return self.__acall__(*args, **kwargs)
         else:
@@ -62,17 +65,18 @@ class _Awaitable_Function:
 def _install_class_dispatcher(klass: type) -> None:
     """Install a context-aware __call__ dispatcher on a class that defines its own __call__.
 
-    The sync path captures the subclass's own ``__call__`` from its ``__dict__``
-    (not via MRO, so we get the original method, not a parent dispatcher).
+    The sync path captures the subclass's own `__call__` from its `__dict__`
+    & stores in `__awaitable_sync__` so a subclass can find the original via MRO.
 
-    The async path looks up ``__acall__`` dynamically via MRO (``self.__acall__``),
-    so subclass overrides are respected automatically.
+    The async path looks up `__acall__` dynamically via MRO (`self.__acall__`),
+    making subclasse overrides being respected automatically.
     """
-    original_call = klass.__dict__["__call__"]
+    original_call: Callable = klass.__dict__["__call__"]
+    klass.__awaitable_sync__ = original_call
 
+    @functools.wraps(original_call)
     def dispatcher(self, *args, **kwargs):
         if _is_async_context():
-            # Dynamic MRO lookup: subclass overrides are honoured.
             return self.__acall__(*args, **kwargs)
         return original_call(self, *args, **kwargs)
 
@@ -80,10 +84,9 @@ def _install_class_dispatcher(klass: type) -> None:
 
 
 def _make_init_subclass_hook():
-    """Create an `__init_subclass__` hook that wraps subclass `__call__` when overridden."""
+    """Apply an `__init_subclass__` hook wrapping subclass `__call__` when overridden."""
 
     def init_subclass_hook(cls, **kwargs):
-        # Only re-wrap when the subclass defines its own __call__
         if "__call__" in cls.__dict__:
             _install_class_dispatcher(cls)
 
@@ -91,17 +94,21 @@ def _make_init_subclass_hook():
 
 
 def _as_awaitable_type(klass: type) -> type:
-    # Capture original __call__ and __acall__
-    original_call = klass.__call__
+    # If the class or parent has already decorated, its true
+    # the original __call__ is stored in __awaitable_sync__
+    original_call = getattr(klass, "__awaitable_sync__", klass.__call__)
 
-    # Get or create a default __acall__
     original_acall = getattr(klass, "__acall__", None)
     if original_acall is None:
-
-        async def _default_acall(self, *args, **kwargs):
+        # No __acall__ -> wrap __call__ in a coro
+        @functools.wraps(original_call)
+        async def __acall__(self, *args, **kwargs):
             return original_call(self, *args, **kwargs)
 
-        original_acall = _default_acall
+        new_acall = __acall__
+    else:
+        new_acall = original_acall
+
 
     # Build the namespace for the new class: copy everything from klass
     # but inject our __call__ dispatcher and __init_subclass__ in the body
@@ -120,6 +127,10 @@ def _as_awaitable_type(klass: type) -> type:
     ):
         namespace.pop(key, None)
 
+    # Store the original sync call so subclasses decorated with @awaitable
+    # can find it through MRO instead of capturing a parent dispatcher.
+    namespace["__awaitable_sync__"] = original_call
+
     # Context-aware __call__ dispatcher for the class body
     # Sync path: use captured original_call.
     # Async path: dynamic MRO lookup so subclasses that only override
@@ -127,11 +138,10 @@ def _as_awaitable_type(klass: type) -> type:
     def dispatcher(self, *args, **kwargs):
         if _is_async_context():
             return self.__acall__(*args, **kwargs)
-        else:
-            return original_call(self, *args, **kwargs)
+        return original_call(self, *args, **kwargs)
 
     namespace["__call__"] = dispatcher
-    namespace["__acall__"] = original_acall
+    namespace["__acall__"] = new_acall
 
     # Define __init_subclass__ in the body so Python 3.12+ properly
     # dispatches it with the new subclass as the argument.
@@ -145,8 +155,34 @@ def _as_awaitable_type(klass: type) -> type:
     return new_klass
 
 
-# Public decorator instance - need to make it callable to support @ syntax
-def awaitable(obj):
+def awaitable(obj) -> Callable:
+    """Decorated callable dispatches __call__ or __acall__
+
+    When decorated is called on sync context, uses __call__
+    When decorated is called on async context, uses __acall__
+
+    Appliable on classes:
+    ```
+    @awaitable
+    class A:
+        def __call__(self, ...):
+            return 'called from some `def`
+
+        async def __acall__(self, ...):
+            return 'called from some `async def`
+    ```
+
+    Appliable on functions and methods:
+    ```
+    @awaitable
+    def func(...):
+        return 'called from some `def`
+
+    @func.acall
+    async def func(...):
+        return 'called from some `async def`
+    ```
+    """
     if isinstance(obj, type):
         return _as_awaitable_type(obj)
     else:
