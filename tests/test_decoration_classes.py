@@ -152,3 +152,60 @@ def test_default_async_wrapper_for_class():
         assert await result == "sync: hello"
 
     asyncio.run(test_async())
+
+# --- Test 11: @awaitable applied to a subclass that only overrides __acall__ ---
+
+
+@awaitable
+class BaseClass2:
+    def __call__(self, value: str) -> str:
+        return f"base sync: {value}"
+
+    async def __acall__(self, value: str) -> str:
+        return f"base async: {value}"
+
+
+@awaitable
+class DerivedClass2(BaseClass2):
+    async def __acall__(self, value: str) -> str:
+        return f"derived async: {value}"
+
+
+def test_decorated_subclass_acall_only_sync():
+    """@awaitable on a subclass that only overrides __acall__ — sync path."""
+    derived = DerivedClass2()
+    assert derived("test") == "base sync: test"
+
+
+@pytest.mark.asyncio
+async def test_decorated_subclass_acall_only_async():
+    """@awaitable on a subclass that only overrides __acall__ — async path."""
+    derived = DerivedClass2()
+    result = await derived("test")
+    assert result == "derived async: test"
+
+
+# --- Test 12: @awaitable applied to a subclass that overrides both ---
+
+
+@awaitable
+class DerivedClassAll2(BaseClass2):
+    def __call__(self, value: str) -> str:
+        return f"derived sync: {value}"
+
+    async def __acall__(self, value: str) -> str:
+        return f"derived async: {value}"
+
+
+def test_decorated_subclass_both_sync():
+    """@awaitable on a subclass that overrides both — sync path."""
+    derived = DerivedClassAll2()
+    assert derived("test") == "derived sync: test"
+
+
+@pytest.mark.asyncio
+async def test_decorated_subclass_both_async():
+    """@awaitable on a subclass that overrides both — async path."""
+    derived = DerivedClassAll2()
+    result = await derived("test")
+    assert result == "derived async: test"
