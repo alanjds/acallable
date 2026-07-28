@@ -10,32 +10,20 @@ _ARE_ASYNC_FLAGS = inspect.CO_COROUTINE | inspect.CO_ASYNC_GENERATOR
 _IS_GENERATOR = inspect.CO_GENERATOR
 
 
-def _is_async_context():
-    """Detect if the immediate caller is an async def.
+def _is_async_context(frame):
+    """Detect if `frame` (or the first non-generator frame above it)
+    belongs to an `async def`.
 
-    A sync `def` called from inside an `async def` is still sync.
-
-    Walks up the frame stack past generator frames (`CO_GENERATOR`)
-    because generators body executes as part of whatever drives them.
-    They DO NOT define a new sync/async context themselves.
-
-    The sync `def` that is not a generator DOES define sync context:
-    a sync helper called inside an `async def` is sync.
+    Generator frames (`CO_GENERATOR`) are skipped as its body runs
+    as part of who drives it. Does not define its own context.
     """
-    frame = sys._getframe()
-    # frame         → this _is_async_context frame
-    # frame.f_back  → __call__ or class dispatcher frame
-    # frame.f_back.f_back → immediate caller or first non-acallable frame
-    caller = frame.f_back.f_back
-
-    while caller is not None:
-        # Skip generator frames as transparent
-        if caller.f_code.co_flags & _IS_GENERATOR:
-            caller = caller.f_back
+    while frame is not None:
+        if frame.f_code.co_flags & _IS_GENERATOR:
+            # `await` is not possible on this frame, but may be on an upper one
+            frame = frame.f_back
             continue
-        # Determine context from the 1st non-generator frame
-        return bool(caller.f_code.co_flags & _ARE_ASYNC_FLAGS)
-
+        # 1st non-generator frame determines the context as sync or async
+        return bool(frame.f_code.co_flags & _ARE_ASYNC_FLAGS)
     return False
 
 
@@ -57,7 +45,7 @@ class _Awaitable_Function:
         return self._async_func
 
     def __call__(self, *args, **kwargs) -> Callable | Coroutine:
-        if _is_async_context():
+        if _is_async_context(sys._getframe().f_back):
             return self.__acall__(*args, **kwargs)
         else:
             return self.sync(*args, **kwargs)
@@ -97,9 +85,10 @@ def _install_class_dispatcher(klass: type) -> None:
 
     @functools.wraps(original_call)
     def dispatcher(self, *args, **kwargs):
-        if _is_async_context():
+        if _is_async_context(sys._getframe().f_back):
             return self.__acall__(*args, **kwargs)
-        return original_call(self, *args, **kwargs)
+        else:
+            return original_call(self, *args, **kwargs)
 
     klass.__call__ = dispatcher
 
@@ -129,9 +118,10 @@ def _as_awaitable_type(klass: type) -> type:
         klass.__acall__ = __acall__
 
     def dispatcher(self, *args, **kwargs):
-        if _is_async_context():
+        if _is_async_context(sys._getframe().f_back):
             return self.__acall__(*args, **kwargs)
-        return self.__acallable_sync__(*args, **kwargs)
+        else:
+            return self.__acallable_sync__(*args, **kwargs)
 
     klass.__call__ = dispatcher
 
