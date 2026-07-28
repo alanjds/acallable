@@ -3,8 +3,10 @@ from __future__ import annotations
 import functools
 import inspect
 import sys
-from collections.abc import Coroutine
-from typing import Callable
+from collections.abc import Callable, Coroutine, Awaitable
+from typing import TypeVar, overload
+
+TClass = TypeVar("TClass", bound=type)
 
 _ARE_ASYNC_FLAGS = inspect.CO_COROUTINE | inspect.CO_ASYNC_GENERATOR
 _IS_GENERATOR = inspect.CO_GENERATOR
@@ -27,7 +29,7 @@ def _is_async_context(frame):
     return False
 
 
-class _Awaitable_Function:
+class _Awaitable_Function(Callable):
     def __init__(self, fn: Callable):
         # Default async as the wrapped sync
         async def __acall__(*args, **kwargs):
@@ -93,7 +95,7 @@ def _install_class_dispatcher(klass: type) -> None:
     klass.__call__ = dispatcher
 
 
-def _as_awaitable_type(klass: type) -> type:
+def _as_awaitable_type(klass: TClass) -> TClass:
     """Decorated class `__call__` dispatches to `__acall__` if called from async.
 
     The class' original __call__ is saved as `__acallable_sync__`,
@@ -143,7 +145,12 @@ def _as_awaitable_type(klass: type) -> type:
     return klass
 
 
-def awaitable(obj) -> Callable:
+@overload
+def awaitable(obj: TClass) -> TClass: ...
+@overload
+def awaitable(obj: Callable) -> _Awaitable_Function: ...
+
+def awaitable(obj):
     """Decorated callable dispatches __call__ or __acall__
 
     When decorated is called on sync context, uses __call__
