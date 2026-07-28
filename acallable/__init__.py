@@ -6,6 +6,9 @@ import sys
 from collections.abc import Coroutine
 from typing import Callable
 
+_ARE_ASYNC_FLAGS = inspect.CO_COROUTINE | inspect.CO_ASYNC_GENERATOR
+_IS_GENERATOR = inspect.CO_GENERATOR
+
 
 def _is_async_context():
     """Detect if the immediate caller is an async def.
@@ -14,7 +17,7 @@ def _is_async_context():
 
     Walks up the frame stack past generator frames (`CO_GENERATOR`)
     because generators body executes as part of whatever drives them.
-    They DO NOT define a new sync/async context itselves.
+    They DO NOT define a new sync/async context themselves.
 
     The sync `def` that is not a generator DOES define sync context:
     a sync helper called inside an `async def` is sync.
@@ -25,16 +28,13 @@ def _is_async_context():
     # frame.f_back.f_back → immediate caller or first non-acallable frame
     caller = frame.f_back.f_back
 
-    flags = inspect.CO_COROUTINE | inspect.CO_ASYNC_GENERATOR
-    skip_flag = inspect.CO_GENERATOR
-
     while caller is not None:
         # Skip generator frames as transparent
-        if caller.f_code.co_flags & skip_flag:
+        if caller.f_code.co_flags & _IS_GENERATOR:
             caller = caller.f_back
             continue
         # Determine context from the 1st non-generator frame
-        return bool(caller.f_code.co_flags & flags)
+        return bool(caller.f_code.co_flags & _ARE_ASYNC_FLAGS)
 
     return False
 
