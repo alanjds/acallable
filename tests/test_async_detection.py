@@ -81,10 +81,7 @@ async def test_async_calls_sync_wrapper():
         return _identity("d")
 
     result = sync_wrapper()
-    # sync_wrapper itself is sync, but there's an async frame above it,
-    # so _is_async_context() walks back and finds it -> returns coroutine.
-    assert _is_coro(result)
-    assert await result == "sync:d"
+    assert result == "sync:d"
 
 
 # ===================================================================
@@ -119,9 +116,7 @@ def test_sync_async_sync_decorated():
 
     coro = async_mid()
     result = asyncio.run(coro)
-    # sync_wrapper is sync, but called from async_mid -> async context
-    assert _is_coro(result)
-    assert asyncio.run(result) == "sync:f"
+    assert result == "sync:f"
 
 
 # ===================================================================
@@ -138,13 +133,10 @@ async def test_async_sync_async_sync_decorated():
             return sync_bottom()
         return async_inner()
 
-    # sync_mid returns the coroutine from async_inner
     coro = sync_mid()
-    # coro is async_inner() which returns sync_bottom().
-    # sync_bottom is sync but has async_inner frame above -> coroutine.
-    sub = await coro
-    assert _is_coro(sub)
-    assert await sub == "sync:g"
+    # async_inner() runs, calls sync_bottom() which returns "sync:g"
+    result = await coro
+    assert result == "sync:g"
 
 
 # ===================================================================
@@ -177,8 +169,7 @@ def test_lambda_in_sync():
 async def test_lambda_in_async():
     fn = lambda: _identity("k")
     result = fn()
-    assert _is_coro(result)
-    assert await result == "async:k"
+    assert result == "sync:k"
 
 
 def test_list_comp_in_sync():
@@ -204,8 +195,7 @@ async def test_callback_in_async():
         return cb()
 
     result = run_callback(lambda: _identity("n"))
-    assert _is_coro(result)
-    assert await result == "sync:n"
+    assert result == "sync:n"
 
 
 # ===================================================================
@@ -216,6 +206,8 @@ def test_deep_sync_async_sync_async_sync():
     """
     sync -> async -> sync -> async -> sync -> decorated.
     5 levels of alternating contexts.
+
+    The immediate caller is level5 (sync) → plain sync value.
     """
 
     def level1():
@@ -231,9 +223,8 @@ def test_deep_sync_async_sync_async_sync():
 
     c1 = level1()  # level2() coroutine
     c2 = asyncio.run(c1)  # level3 returns level4 coroutine
-    c3 = asyncio.run(c2)  # level4 returns level5 result
-    assert _is_coro(c3)
-    assert asyncio.run(c3) == "sync:o"
+    c3 = asyncio.run(c2)  # level4 runs level5 → returns "sync:o"
+    assert c3 == "sync:o"
 
 
 @pytest.mark.asyncio
@@ -286,8 +277,7 @@ async def test_async_gen_with_sync_part():
 
     values = [item async for item in agen()]
     assert len(values) == 1
-    assert _is_coro(values[0])
-    assert await values[0] == "sync:r"
+    assert values[0] == "sync:r"
 
 
 # ===================================================================
@@ -353,7 +343,7 @@ async def test_callable_class_async():
 
 
 def test_callable_class_async_via_sync_wrapper():
-    """Sync wrapper inside async def -> dispatcher sees async context."""
+    """Sync wrapper inside async def → immediate caller is sync → sync result."""
     async def async_fn():
         obj = CallableClass()
 
@@ -364,8 +354,7 @@ def test_callable_class_async_via_sync_wrapper():
 
     coro = async_fn()
     result = asyncio.run(coro)
-    assert _is_coro(result)
-    assert asyncio.run(result) == "sync-class:w"
+    assert result == "sync-class:w"
 
 
 # ===================================================================

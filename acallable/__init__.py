@@ -8,14 +8,16 @@ from typing import Callable
 
 
 def _is_async_context():
-    """Detect if current call place is asynchronous."""
+    """Detect if the immediate caller is an async def.
+
+    A sync `def` called from inside an `async def` is still sync.
+    """
     frame = sys._getframe()
+    caller = frame.f_back.f_back
+    if caller is None:
+        return False
     flags = inspect.CO_COROUTINE | inspect.CO_ASYNC_GENERATOR
-    while frame is not None:
-        if frame.f_code.co_flags & flags:
-            return True
-        frame = frame.f_back
-    return False
+    return bool(caller.f_code.co_flags & flags)
 
 
 class _Awaitable_Function:
