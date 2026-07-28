@@ -1,5 +1,7 @@
 import asyncio
+
 import pytest
+
 from acallable import awaitable
 
 # --- Existing tests remain ---
@@ -15,7 +17,8 @@ async def fetch(url: str) -> str:
 
 def test_basic_sync_function_without_acall():
     """Test that @fetch('example.com') from sync context returns sync result."""
-    assert fetch("example.com") == "sync: example.com"
+    result = fetch("example.com")
+    assert result == "sync: example.com"
 
 async def test_basic_sync_function_from_async_context():
     """Test that fetch('example.com') from async context returns coroutine to be awaited."""

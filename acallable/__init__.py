@@ -3,11 +3,8 @@ from __future__ import annotations
 import functools
 import inspect
 import sys
-from collections.abc import Callable, Coroutine, Awaitable
-from typing import Any, TypeVar, Union, overload, Generic
-
-TClass = TypeVar("TClass", bound=type)
-T = TypeVar("T")
+from collections.abc import Awaitable, Callable
+from typing import overload
 
 _ARE_ASYNC_FLAGS = inspect.CO_COROUTINE | inspect.CO_ASYNC_GENERATOR
 _IS_GENERATOR = inspect.CO_GENERATOR
@@ -30,30 +27,30 @@ def _is_async_context(frame):
     return False
 
 
-class _Awaitable_Function(Generic[T]):
+class _Awaitable_Function[T](Callable, Awaitable[T]):
     def __init__(self, fn: Callable[..., T]):
         # Default async as the wrapped sync
-        async def __acall__(*args, **kwargs) -> T:
+        async def __acall__(*args, **kwargs) -> Awaitable[T]:
             return fn(*args, **kwargs)
 
-        self._sync_func: Callable[..., T] = fn
-        self._async_func: Callable[..., Coroutine[Any, Any, T]] = __acall__
+        self._sync_func = fn
+        self._async_func = __acall__
 
     @property
     def sync(self) -> Callable[..., T]:
         return self._sync_func
 
     @property
-    def __acall__(self) -> Callable[..., Coroutine[Any, Any, T]]:
+    def __acall__(self) -> Callable[..., Awaitable[T]]:
         return self._async_func
 
-    def __call__(self, *args, **kwargs) -> T | Coroutine[Any, Any, T]:
+    def __call__(self, *args, **kwargs) ->  T | Awaitable[T]:
         if _is_async_context(sys._getframe().f_back):
             return self.__acall__(*args, **kwargs)
         else:
             return self.sync(*args, **kwargs)
 
-    def acall(self, fn: Callable):
+    def acall(self, fn: Callable[..., Awaitable[T]]) -> _Awaitable_Function[T]:
         """Used like @property.set"""
         self._async_func = fn
         return self
@@ -96,7 +93,7 @@ def _install_class_dispatcher(klass: type) -> None:
     klass.__call__ = dispatcher
 
 
-def _as_awaitable_type(klass: TClass) -> TClass:
+def _as_awaitable_type[T: type](klass: T) -> T:
     """Decorated class `__call__` dispatches to `__acall__` if called from async.
 
     The class' original __call__ is saved as `__acallable_sync__`,
@@ -145,11 +142,10 @@ def _as_awaitable_type(klass: TClass) -> TClass:
 
     return klass
 
-
 @overload
-def awaitable(obj: TClass) -> TClass: ...
+def awaitable[T: type](obj: T) -> T: ...
 @overload
-def awaitable(obj: Callable[..., T]) -> _Awaitable_Function[T]: ...
+def awaitable[T](obj: Callable[..., T]) -> _Awaitable_Function[T]: ...
 
 def awaitable(obj):
     """Decorated callable dispatches __call__ or __acall__
