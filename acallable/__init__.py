@@ -11,13 +11,32 @@ def _is_async_context():
     """Detect if the immediate caller is an async def.
 
     A sync `def` called from inside an `async def` is still sync.
+
+    Walks up the frame stack past generator frames (`CO_GENERATOR`)
+    because generators body executes as part of whatever drives them.
+    They DO NOT define a new sync/async context itselves.
+
+    The sync `def` that is not a generator DOES define sync context:
+    a sync helper called inside an `async def` is sync.
     """
     frame = sys._getframe()
+    # frame         → this _is_async_context frame
+    # frame.f_back  → __call__ or class dispatcher frame
+    # frame.f_back.f_back → immediate caller or first non-acallable frame
     caller = frame.f_back.f_back
-    if caller is None:
-        return False
+
     flags = inspect.CO_COROUTINE | inspect.CO_ASYNC_GENERATOR
-    return bool(caller.f_code.co_flags & flags)
+    skip_flag = inspect.CO_GENERATOR
+
+    while caller is not None:
+        # Skip generator frames as transparent
+        if caller.f_code.co_flags & skip_flag:
+            caller = caller.f_back
+            continue
+        # Determine context from the 1st non-generator frame
+        return bool(caller.f_code.co_flags & flags)
+
+    return False
 
 
 class _Awaitable_Function:

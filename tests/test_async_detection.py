@@ -1,11 +1,6 @@
 """
 Stress tests for the async context detection via frame introspection.
 
-The detection in _is_async_context() walks the Python frame stack
-looking for frames whose co_flags contain CO_COROUTINE or
-CO_ASYNC_GENERATOR.  This test suite exercises that walk through
-many nesting patterns of sync / async / sync / async calls.
-
 When @awaitable is called from a sync def, it must return the
 plain sync value.  When called from an async def, it must return
 a coroutine (the __acall__ result).
@@ -167,6 +162,7 @@ def test_lambda_in_sync():
 
 @pytest.mark.asyncio
 async def test_lambda_in_async():
+    """Lambda is a sync callable — the immediate caller is sync → sync result."""
     fn = lambda: _identity("k")
     result = fn()
     assert result == "sync:k"
@@ -488,3 +484,141 @@ def test_mixed_call_patterns():
 
     # back to sync
     assert _identity("s3") == "sync:s3"
+
+
+# ===================================================================
+# 20 -- generator inside async def yields coroutines
+# ===================================================================
+
+
+@pytest.mark.asyncio
+async def test_generator_in_async_yields_coroutine():
+    """A sync generator defined and driven inside an async def.
+
+    Generator frames (CO_GENERATOR) are transparent — they are
+    suspension points whose body runs as part of whoever drives
+    them.  Since the driver is an async def, the decorated
+    function inside the generator returns a coroutine.
+    """
+
+    def gen():
+        yield _identity("u1")
+        yield _identity("u2")
+
+    g = gen()
+    r1 = next(g)
+    r2 = next(g)
+
+    assert _is_coro(r1), "generator inside async def yields coroutines"
+    assert _is_coro(r2)
+    assert await r1 == "async:u1"
+    assert await r2 == "async:u2"
+
+
+# ===================================================================
+# 21 -- asyncio.gather with generator pattern
+# ===================================================================
+
+
+@pytest.mark.asyncio
+async def test_generator_asyncio_gather_pattern():
+    """asyncio.gather(*gen()) — the driving use case for generator transparency.
+
+    A generator inside an async def should yield coroutines that
+    ``asyncio.gather`` can consume.
+    """
+
+    def gen():
+        yield _identity("g1")
+        yield _identity("g2")
+        yield _identity("g3")
+
+    results = await asyncio.gather(*gen())
+    assert results == ["async:g1", "async:g2", "async:g3"]
+
+
+# ===================================================================
+# 22 -- async with context manager
+# ===================================================================
+
+
+@pytest.mark.asyncio
+async def test_async_with_aenter():
+    """async with calls __aenter__ (async def) — the decorated func
+    returns a coroutine, which __aenter__ must await."""
+
+    class AsyncCM:
+        async def __aenter__(self_):
+            return await _identity("cm")
+
+        async def __aexit__(self_, *a):
+            pass
+
+    async with AsyncCM() as result:
+        assert result == "async:cm"
+
+
+# ===================================================================
+# 23 -- generator driven from sync stays sync
+# ===================================================================
+
+
+def test_generator_driven_from_sync_stays_sync():
+    """Same generator pattern called from sync context stays sync.
+
+    The generator's f_back points to a sync frame — no async frames
+    above → sync value.
+    """
+
+    def gen():
+        yield _identity("v1")
+        yield _identity("v2")
+
+    results = list(gen())
+    assert results == ["sync:v1", "sync:v2"]
+
+
+# ===================================================================
+# 24 -- nested generators (gen -> gen) inside async
+# ===================================================================
+
+
+@pytest.mark.asyncio
+async def test_nested_generators_skipped():
+    """Multiple levels of generator frames are all transparent."""
+
+    def outer_gen():
+        def inner_gen():
+            yield _identity("nested")
+
+        yield from inner_gen()
+
+    g = outer_gen()
+    r = next(g)
+    assert _is_coro(r)
+    assert await r == "async:nested"
+
+
+# ===================================================================
+# 25 -- generator inside sync def stays sync (even if called from async)
+# ===================================================================
+
+
+@pytest.mark.asyncio
+async def test_generator_inside_sync_def_stays_sync():
+    """A generator defined inside a sync def, driven from async.
+
+    The generator's f_back points to the sync def that drives it,
+    not to the outer async def.
+    """
+
+    def sync_maker():
+        def gen():
+            yield _identity("sync-maker")
+
+        return list(gen())
+
+    # Even when called from async, sync_maker drives the generator
+    # from its own sync frame.
+    results = sync_maker()
+    assert results == ["sync:sync-maker"]
