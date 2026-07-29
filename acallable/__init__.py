@@ -27,7 +27,7 @@ def _is_async_context(frame):
     return False
 
 
-class Acallable[T](Callable, Awaitable[T]):
+class Acallable[T](Callable):
     def __init__(self, fn: Callable[..., T]):
         # Default async as the wrapped sync
         async def __acall__(*args, **kwargs) -> Awaitable[T]:
