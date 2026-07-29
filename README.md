@@ -155,10 +155,10 @@ frame is a `CO_GENERATOR`, where `await` is not legal. The _immediate_ context i
 `asyncio.gather` would receive plain values instead of coroutines.
 However it whould not be correct, as "the call site **IS** inside a frame where `await` is legal".
 
-`acallable` walks up the call stack past any transparent `CO_GENERATOR` frames
-(sync genexprs and plain generators) until it finds a sync or async enclosing context.
-`CO_ASYNC_GENERATOR` frames (`async def ... yield`) are async contexts.
-That consideration let genexpr-inside-gather patterns working correctly.
+`acallable` walks up the call stack transparently past any `CO_GENERATOR` frames
+(sync genexprs and plain generators) until it finds some sync or async enclosing context.
+`CO_ASYNC_GENERATOR` frames (`async def ... yield`) are considered async contexts.
+That let genexpr-inside-gather patterns working correctly.
 
 The frame-inspection overhead using `sys._getframe` and `co_flags` was
 [reported][frame-detection] in the Python discussion forums as costing less than 1.5µs;
@@ -180,10 +180,10 @@ async def greet(name: str) -> str:
     await asyncio.sleep(0)           # async body: runs when awaited
     return f"Hello, {name}"
 
-# From sync caller:
+# From sync caller, like `def _():`
 print(greet("world"))                # Hello, world
 
-# From async caller:
+# From async caller, like `async def _():`
 print(await greet("world"))          # Hello, world
 ```
 
