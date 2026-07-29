@@ -30,7 +30,7 @@ def _is_async_context(frame):
 class Acallable[T](Callable):
     def __init__(self, fn: Callable[..., T]):
         # Default async as the wrapped sync
-        async def __acall__(*args, **kwargs) -> Awaitable[T]:
+        async def __acall__(*args, **kwargs) -> T:
             return fn(*args, **kwargs)
 
         if fn is None:
