@@ -28,8 +28,8 @@ def _is_async_context(frame):
 
 
 class Acallable[T](Callable):
-    _sync_func: Callable[..., T] = None
-    _async_func: Callable[..., Awaitable[T]] = None
+    _sync_func: Callable[..., T] | None = None
+    _async_func: Callable[..., Awaitable[T]] | None = None
 
     def __init__(self, fn: Callable[..., T]):
         # Default async as the wrapped sync
@@ -45,12 +45,12 @@ class Acallable[T](Callable):
     @property
     def sync(self) -> Callable[..., T]:
         """Always the synchronous (`def`) version of this Callable"""
-        return self._sync_func
+        return self._sync_func  # ty:ignore[invalid-return-type]
 
     @property
     def __acall__(self) -> Callable[..., Awaitable[T]]:
         """Always the asynchronous (`async def`) version of this Callable"""
-        return self._async_func
+        return self._async_func  # ty:ignore[invalid-return-type]
 
     def __call__(self, *args, **kwargs) ->  T | Awaitable[T]:
         """Dispatches async or sync based on where it was called
@@ -99,13 +99,17 @@ class Acallable[T](Callable):
         # Return a lightweight bound callable that pre-fills `instance`
         # as the first argument of both sync and async implementations.
 
+        # Let typecheckers happy
+        assert self._sync_func is not None
+        assert self._async_func is not None
+
         bound = Acallable.__new__(Acallable)
         bound._sync_func = functools.partial(self._sync_func, instance)
         bound._async_func = functools.partial(self._async_func, instance)
         return bound
 
 
-def _install_class_dispatcher(klass: type) -> None:
+def _install_class_dispatcher(klass: Callable) -> None:
     """Install a context-aware __call__ dispatcher on a class that defines its own __call__.
 
     The sync path captures the subclass's own `__call__` from its `__dict__`
@@ -115,7 +119,7 @@ def _install_class_dispatcher(klass: type) -> None:
     making subclasse overrides being respected automatically.
     """
     original_call: Callable = klass.__dict__['__call__']
-    klass.__acallable_sync__ = original_call
+    klass.__acallable_sync__ = original_call  # ty:ignore[unresolved-attribute]
 
     @functools.wraps(original_call)
     def dispatcher(self, *args, **kwargs):
@@ -124,7 +128,7 @@ def _install_class_dispatcher(klass: type) -> None:
         else:
             return original_call(self, *args, **kwargs)
 
-    klass.__call__ = dispatcher
+    klass.__call__ = dispatcher  # ty:ignore[unresolved-attribute]
 
 
 def _as_acallable_type[T: type](klass: T) -> T:
@@ -140,7 +144,7 @@ def _as_acallable_type[T: type](klass: T) -> T:
     # If the class or a parent was already decorated, reuse its stored original
     # sync callable instead of capturing our own dispatcher as the "original".
     original_call = getattr(klass, '__acallable_sync__', klass.__call__)
-    klass.__acallable_sync__ = original_call
+    klass.__acallable_sync__ = original_call  # ty:ignore[unresolved-attribute]
 
     original_acall = getattr(klass, '__acall__', None)
     if original_acall is None:
@@ -149,7 +153,7 @@ def _as_acallable_type[T: type](klass: T) -> T:
         async def __acall__(self, *args, **kwargs):
             return self.__acallable_sync__(*args, **kwargs)
 
-        klass.__acall__ = __acall__
+        klass.__acall__ = __acall__  # ty:ignore[unresolved-attribute]
 
     def dispatcher(self, *args, **kwargs):
         if _is_async_context(sys._getframe().f_back):
@@ -157,7 +161,7 @@ def _as_acallable_type[T: type](klass: T) -> T:
         else:
             return self.__acallable_sync__(*args, **kwargs)
 
-    klass.__call__ = dispatcher
+    klass.__call__ = dispatcher  # ty:ignore[invalid-assignment]
 
     original_init_subclass = klass.__dict__.get('__init_subclass__', None)
 
@@ -172,7 +176,7 @@ def _as_acallable_type[T: type](klass: T) -> T:
         if '__call__' in cls.__dict__:
             _install_class_dispatcher(cls)
 
-    klass.__init_subclass__ = classmethod(combined)
+    klass.__init_subclass__ = classmethod(combined)  # ty:ignore[invalid-assignment]
 
     return klass
 
