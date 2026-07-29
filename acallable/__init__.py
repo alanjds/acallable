@@ -93,7 +93,7 @@ def _install_class_dispatcher(klass: type) -> None:
     klass.__call__ = dispatcher
 
 
-def _as_awaitable_type[T: type](klass: T) -> T:
+def _as_acallable_type[T: type](klass: T) -> T:
     """Decorated class `__call__` dispatches to `__acall__` if called from async.
 
     The class' original __call__ is saved as `__acallable_sync__`,
@@ -176,6 +176,6 @@ def acallable(obj):
     ```
     """
     if isinstance(obj, type):
-        return _as_awaitable_type(obj)
+        return _as_acallable_type(obj)
     else:
         return Acallable(obj)
