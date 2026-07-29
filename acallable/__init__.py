@@ -28,6 +28,9 @@ def _is_async_context(frame):
 
 
 class Acallable[T](Callable):
+    _sync_func: Callable[..., T] = None
+    _async_func: Callable[..., Awaitable[T]] = None
+
     def __init__(self, fn: Callable[..., T]):
         # Default async as the wrapped sync
         async def __acall__(*args, **kwargs) -> T:
@@ -73,7 +76,13 @@ class Acallable[T](Callable):
         return getattr(self._sync_func, name)
 
     def __setattr__(self, name, value):
-        if name == '_sync_func' or name in self.__dict__:
+        try:
+            object.__getattribute__(self, name)
+            instance_local = True
+        except AttributeError:
+            instance_local = False
+
+        if instance_local:
             super().__setattr__(name, value)
         else:
             setattr(self._sync_func, name, value)
