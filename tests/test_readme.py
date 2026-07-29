@@ -9,45 +9,45 @@ from acallable import acallable
 # --- Test 1: Basic sync/async function with explicit @fn.acall ---
 @acallable
 def fetch(url: str) -> str:
-    return f"sync: {url}"
+    return f'sync: {url}'
 
 @fetch.acall
 async def fetch(url: str) -> str:
-    return f"async: {url}"
+    return f'async: {url}'
 
 def test_basic_sync_function_without_acall():
     """Test that @fetch('example.com') from sync context returns sync result."""
-    result = fetch("example.com")
-    assert result == "sync: example.com"
+    result = fetch('example.com')
+    assert result == 'sync: example.com'
 
 async def test_basic_sync_function_from_async_context():
     """Test that fetch('example.com') from async context returns coroutine to be awaited."""
-    result = fetch("example.com")
+    result = fetch('example.com')
     assert not isinstance(result, str)
-    assert await result == "async: example.com"
+    assert await result == 'async: example.com'
 
 # --- Test 2: my_sync_main / my_async_main style examples ---
 
 def my_sync_main():
     """Example from README: sync context direct call."""
-    body = fetch("https://example.com")  # from sync context
+    body = fetch('https://example.com')  # from sync context
     return body
 
 async def my_async_main():
     """Example from README: async context indirect call (via await)."""
-    body = await fetch("https://example.com")  # from async context
+    body = await fetch('https://example.com')  # from async context
     return body
 
 def test_my_sync_main_example():
     """Test the my_sync_main pattern from README."""
     result = my_sync_main()
-    assert result == "sync: https://example.com"
+    assert result == 'sync: https://example.com'
 
 @pytest.mark.asyncio
 async def test_my_async_main_example():
     """Test the my_async_main pattern from README."""
     result = await my_async_main()
-    assert result == "async: https://example.com"
+    assert result == 'async: https://example.com'
 
 # --- Test 3: Function without explicit async body (default wrapper behavior) ---
 
@@ -69,11 +69,11 @@ async def test_default_async_wrapper_async_context():
 class DataStore:
     @acallable
     def save(self, record: dict) -> None:
-        self.last_sync_result = f"sync: {record}"
+        self.last_sync_result = f'sync: {record}'
 
     @save.acall
     async def save(self, record: dict) -> None:
-        self.last_async_result = f"async: {record}"
+        self.last_async_result = f'async: {record}'
 
 
 def test_class_method_decorator_sync_context():
@@ -81,7 +81,7 @@ def test_class_method_decorator_sync_context():
     store = DataStore()
 
     def foo():
-        store.save({"k": "v"})
+        store.save({'k': 'v'})
 
     foo()
     assert store.last_sync_result == "sync: {'k': 'v'}"
@@ -93,7 +93,7 @@ async def test_class_method_decorator_async_context():
     store = DataStore()
 
     async def foo():
-        await store.save({"k": "v"})
+        await store.save({'k': 'v'})
 
     await foo()
     assert store.last_async_result == "async: {'k': 'v'}"
@@ -106,14 +106,14 @@ def test_class_can_be_decorated():
     @acallable
     class Fetcher:
         def __call__(self, url: str) -> str:
-            return f"sync: {url}"
+            return f'sync: {url}'
 
         async def __acall__(self, url: str) -> str:
-            return f"async: {url}"
+            return f'async: {url}'
 
     f = Fetcher()
     assert isinstance(f, Fetcher)
-    assert f.__class__ is Fetcher, "original class is not touched"
+    assert f.__class__ is Fetcher, 'original class is not touched'
 
 
 # --- Test 6: Method name preservation ---
@@ -122,7 +122,7 @@ def test_class_can_be_decorated():
 def test_method_name_preservation():
     """Test that original names are preserved as documented."""
     # Function should keep its original name
-    assert fetch.__name__ == "fetch"
+    assert fetch.__name__ == 'fetch'
 
     # For class methods, let's create a simpler test
     class MyClass:
@@ -135,7 +135,7 @@ def test_method_name_preservation():
             return x + 2
 
     # Method name should be preserved
-    assert MyClass.my_method.__name__ == "my_method"
+    assert MyClass.my_method.__name__ == 'my_method'
 
     # The decorated instance should have the methods
     instance = MyClass()
@@ -146,38 +146,38 @@ def test_method_name_preservation():
 
 @acallable
 def greet(name: str) -> str:
-    return f"Hello {name}"
+    return f'Hello {name}'
 
 @greet.acall
 async def greet(name: str) -> str:
-    return f"Hello async {name}"
+    return f'Hello async {name}'
 
 def test_direct_access():
     """Test that .sync and .__acall__ property returns the specific implementation."""
     # Direct access to sync function
     sync_fn = greet.sync
-    assert sync_fn("World") == "Hello World"
+    assert sync_fn('World') == 'Hello World'
     assert callable(sync_fn)
 
     # Direct access inside an sync def
     def test_sync_fn_on_sync():
-        sync = greet.sync("World")
-        a_sync = greet.__acall__("World")
-        natural = greet("World")
+        sync = greet.sync('World')
+        a_sync = greet.__acall__('World')
+        natural = greet('World')
 
-        assert callable(sync) is False and sync == "Hello World"
-        assert callable(a_sync) is True and asyncio.run(a_sync) == "Hello async World"
-        assert callable(natural) is False and natural == "Hello World"
+        assert callable(sync) is False and sync == 'Hello World'
+        assert callable(a_sync) is True and asyncio.run(a_sync) == 'Hello async World'
+        assert callable(natural) is False and natural == 'Hello World'
 
     # Direct access inside an async def
     async def test_sync_fn_on_async():
-        sync = greet.sync("World")
-        a_sync = greet.__acall__("World")
-        natural = greet("World")
+        sync = greet.sync('World')
+        a_sync = greet.__acall__('World')
+        natural = greet('World')
 
-        assert callable(sync) is False and sync == "Hello World"
-        assert callable(a_sync) is True and (await a_sync) == "Hello async World"
-        assert callable(natural) is True and (await natural) == "Hello async World"
+        assert callable(sync) is False and sync == 'Hello World'
+        assert callable(a_sync) is True and (await a_sync) == 'Hello async World'
+        assert callable(natural) is True and (await natural) == 'Hello async World'
 
     assert callable
 
@@ -187,12 +187,12 @@ def test_acall_access():
 
     # It should be a coroutine function
     async def test_async_fn():
-        result = async_fn("World")
-        assert not isinstance(result, str) or await result == "Hello async World"
+        result = async_fn('World')
+        assert not isinstance(result, str) or await result == 'Hello async World'
         return await result
 
     result = asyncio.run(test_async_fn())
-    assert result == "Hello async World"
+    assert result == 'Hello async World'
 
 # --- Test 10: Multiple decorated functions in same module ---
 

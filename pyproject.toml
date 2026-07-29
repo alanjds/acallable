@@ -34,9 +34,36 @@ where = ["."]
 include = ["acallable*"]
 
 [tool.ruff]
+line-length = 120
+lint.extend-select = [
+    # E and F are enabled by default
+    'B',      # flake8-bugbear
+    'C4',     # flake8-comprehensions
+    'C90',    # mccabe
+    'I',      # isort
+    'N',      # pep8-naming
+    'Q',      # flake8-quotes
+    'RUF100', # ruff (unused noqa)
+    'S',      # flake8-bandit
+    'W',      # pycodestyle
+]
 lint.extend-ignore = [
+    'S101', # assert is fine
+    'S110',
+    'B018', # useless expr. are useful on tests
+    'N805', # some self_ are needed to mess not with real self
+    'E731', # tests do assign lambdas
     'N807', # Function name __acall__ starts with `__`!
 ]
+lint.flake8-quotes = { inline-quotes = 'single', multiline-quotes = 'double' }
+lint.mccabe = { max-complexity = 25 }
+
+[tool.ruff.format]
+quote-style = 'single'
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+known-first-party = ['acallable', 'tests']
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

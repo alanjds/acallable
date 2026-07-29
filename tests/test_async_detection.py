@@ -19,12 +19,12 @@ from acallable import acallable
 @acallable
 def _identity(x: str) -> str:
     """A simple acallable-wrapped function that just echoes."""
-    return f"sync:{x}"
+    return f'sync:{x}'
 
 
 @_identity.acall
 async def _identity(x: str) -> str:
-    return f"async:{x}"
+    return f'async:{x}'
 
 
 def _is_coro(obj) -> bool:
@@ -37,12 +37,12 @@ def _is_coro(obj) -> bool:
 # ===================================================================
 
 def test_decorated_from_sync():
-    assert _identity("a") == "sync:a"
+    assert _identity('a') == 'sync:a'
 
 
 @pytest.mark.asyncio
 async def test_decorated_from_async():
-    assert await _identity("a") == "async:a"
+    assert await _identity('a') == 'async:a'
 
 
 # ===================================================================
@@ -51,18 +51,18 @@ async def test_decorated_from_async():
 
 def test_sync_calls_sync_decorated():
     def wrapper():
-        return _identity("b")
-    assert wrapper() == "sync:b"
+        return _identity('b')
+    assert wrapper() == 'sync:b'
 
 
 def test_sync_calls_sync_calls_decorated():
     def inner():
-        return _identity("c")
+        return _identity('c')
 
     def outer():
         return inner()
 
-    assert outer() == "sync:c"
+    assert outer() == 'sync:c'
 
 
 # ===================================================================
@@ -73,10 +73,10 @@ def test_sync_calls_sync_calls_decorated():
 async def test_async_calls_sync_wrapper():
     """Async def calls a sync def that calls the decorated function."""
     def sync_wrapper():
-        return _identity("d")
+        return _identity('d')
 
     result = sync_wrapper()
-    assert result == "sync:d"
+    assert result == 'sync:d'
 
 
 # ===================================================================
@@ -86,7 +86,7 @@ async def test_async_calls_sync_wrapper():
 def test_sync_calls_async_def():
     """Sync context calls an async function that calls the decorated one."""
     async def async_inner():
-        return _identity("e")
+        return _identity('e')
 
     coro = async_inner()
     # async_inner returns the coroutine from _identity (because
@@ -94,7 +94,7 @@ def test_sync_calls_async_def():
     result = asyncio.run(coro)
     assert _is_coro(result)
     # Can't use await here (sync function), so use asyncio.run
-    assert asyncio.run(result) == "async:e"
+    assert asyncio.run(result) == 'async:e'
 
 
 # ===================================================================
@@ -106,12 +106,12 @@ def test_sync_async_sync_decorated():
 
     async def async_mid():
         def sync_wrapper():
-            return _identity("f")
+            return _identity('f')
         return sync_wrapper()
 
     coro = async_mid()
     result = asyncio.run(coro)
-    assert result == "sync:f"
+    assert result == 'sync:f'
 
 
 # ===================================================================
@@ -124,14 +124,14 @@ async def test_async_sync_async_sync_decorated():
     def sync_mid():
         async def async_inner():
             def sync_bottom():
-                return _identity("g")
+                return _identity('g')
             return sync_bottom()
         return async_inner()
 
     coro = sync_mid()
     # async_inner() runs, calls sync_bottom() which returns "sync:g"
     result = await coro
-    assert result == "sync:g"
+    assert result == 'sync:g'
 
 
 # ===================================================================
@@ -143,12 +143,12 @@ async def test_async_gen_detected():
     """Calling the decorated function inside an async generator."""
 
     async def async_gen():
-        yield _identity("h")
-        yield _identity("i")
+        yield _identity('h')
+        yield _identity('i')
 
     gen = async_gen()
     results = [await item async for item in gen]
-    assert results == ["async:h", "async:i"]
+    assert results == ['async:h', 'async:i']
 
 
 # ===================================================================
@@ -156,28 +156,28 @@ async def test_async_gen_detected():
 # ===================================================================
 
 def test_lambda_in_sync():
-    fn = lambda: _identity("j")
-    assert fn() == "sync:j"
+    fn = lambda: _identity('j')
+    assert fn() == 'sync:j'
 
 
 @pytest.mark.asyncio
 async def test_lambda_in_async():
     """Lambda is a sync callable — the immediate caller is sync → sync result."""
-    fn = lambda: _identity("k")
+    fn = lambda: _identity('k')
     result = fn()
-    assert result == "sync:k"
+    assert result == 'sync:k'
 
 
 def test_list_comp_in_sync():
-    assert [_identity(x) for x in ("l",)] == ["sync:l"]
+    assert [_identity(x) for x in ('l',)] == ['sync:l']
 
 
 @pytest.mark.asyncio
 async def test_list_comp_in_async():
-    results = [_identity(x) for x in ("m",)]
+    results = [_identity(x) for x in ('m',)]
     assert len(results) == 1
     assert _is_coro(results[0])
-    assert await results[0] == "async:m"
+    assert await results[0] == 'async:m'
 
 
 # ===================================================================
@@ -190,8 +190,8 @@ async def test_callback_in_async():
     def run_callback(cb):
         return cb()
 
-    result = run_callback(lambda: _identity("n"))
-    assert result == "sync:n"
+    result = run_callback(lambda: _identity('n'))
+    assert result == 'sync:n'
 
 
 # ===================================================================
@@ -211,7 +211,7 @@ def test_deep_sync_async_sync_async_sync():
             def level3():
                 async def level4():
                     def level5():
-                        return _identity("o")
+                        return _identity('o')
                     return level5()
                 return level4()
             return level3()
@@ -220,7 +220,7 @@ def test_deep_sync_async_sync_async_sync():
     c1 = level1()  # level2() coroutine
     c2 = asyncio.run(c1)  # level3 returns level4 coroutine
     c3 = asyncio.run(c2)  # level4 runs level5 → returns "sync:o"
-    assert c3 == "sync:o"
+    assert c3 == 'sync:o'
 
 
 @pytest.mark.asyncio
@@ -235,7 +235,7 @@ async def test_deep_async_sync_async_sync_async():
             async def level3():
                 def level4():
                     async def level5():
-                        return _identity("p")
+                        return _identity('p')
                     return level5()
                 return level4()
             return level3()
@@ -245,7 +245,7 @@ async def test_deep_async_sync_async_sync_async():
     c2 = await c1       # level3 returns level4's result
     c3 = await c2       # level4 returns level5 coroutine -> identity coro
     assert _is_coro(c3)
-    assert await c3 == "async:p"
+    assert await c3 == 'async:p'
 
 
 # ===================================================================
@@ -256,10 +256,10 @@ def test_generator_yields_decorated():
     """Sync generator itself is NOT async -> detection says sync."""
 
     def gen():
-        yield _identity("q")
+        yield _identity('q')
 
     results = list(gen())
-    assert results == ["sync:q"]
+    assert results == ['sync:q']
 
 
 @pytest.mark.asyncio
@@ -268,12 +268,12 @@ async def test_async_gen_with_sync_part():
 
     async def agen():
         def sync_sub():
-            return _identity("r")
+            return _identity('r')
         yield sync_sub()
 
     values = [item async for item in agen()]
     assert len(values) == 1
-    assert values[0] == "sync:r"
+    assert values[0] == 'sync:r'
 
 
 # ===================================================================
@@ -283,35 +283,35 @@ async def test_async_gen_with_sync_part():
 class Fixture:
     @acallable
     def method(self, val: str) -> str:
-        return f"sync-method:{val}"
+        return f'sync-method:{val}'
 
     @method.acall
     async def method(self, val: str) -> str:
-        return f"async-method:{val}"
+        return f'async-method:{val}'
 
 
 def test_class_method_sync():
     obj = Fixture()
-    assert obj.method("s") == "sync-method:s"
+    assert obj.method('s') == 'sync-method:s'
 
 
 @pytest.mark.asyncio
 async def test_class_method_async():
     obj = Fixture()
-    assert await obj.method("a") == "async-method:a"
+    assert await obj.method('a') == 'async-method:a'
 
 
 def test_class_method_sync_wrapper_in_async():
     """Sync function inside async def calling a method."""
     async def async_fn():
         obj = Fixture()
-        return obj.method("t")
+        return obj.method('t')
 
     coro = async_fn()
     result = asyncio.run(coro)
     # method() sees the async context from async_fn
     assert asyncio.iscoroutine(result)
-    assert asyncio.run(result) == "async-method:t"
+    assert asyncio.run(result) == 'async-method:t'
 
 
 # ===================================================================
@@ -321,21 +321,21 @@ def test_class_method_sync_wrapper_in_async():
 @acallable
 class CallableClass:
     def __call__(self, val: str) -> str:
-        return f"sync-class:{val}"
+        return f'sync-class:{val}'
 
     async def __acall__(self, val: str) -> str:
-        return f"async-class:{val}"
+        return f'async-class:{val}'
 
 
 def test_callable_class_sync():
     obj = CallableClass()
-    assert obj("u") == "sync-class:u"
+    assert obj('u') == 'sync-class:u'
 
 
 @pytest.mark.asyncio
 async def test_callable_class_async():
     obj = CallableClass()
-    assert await obj("v") == "async-class:v"
+    assert await obj('v') == 'async-class:v'
 
 
 def test_callable_class_async_via_sync_wrapper():
@@ -344,13 +344,13 @@ def test_callable_class_async_via_sync_wrapper():
         obj = CallableClass()
 
         def sync_wrapper():
-            return obj("w")
+            return obj('w')
 
         return sync_wrapper()
 
     coro = async_fn()
     result = asyncio.run(coro)
-    assert result == "sync-class:w"
+    assert result == 'sync-class:w'
 
 
 # ===================================================================
@@ -364,12 +364,12 @@ def test_sync_deeply_nested_no_leak():
         def f2():
             def f3():
                 def f4():
-                    return _identity("x")
+                    return _identity('x')
                 return f4()
             return f3()
         return f2()
 
-    assert f1() == "sync:x"
+    assert f1() == 'sync:x'
 
 
 # ===================================================================
@@ -382,13 +382,13 @@ def test_partial_in_async():
     from functools import partial
 
     async def inner():
-        p = partial(_identity, "y")
+        p = partial(_identity, 'y')
         return p()
 
     coro = inner()
     result = asyncio.run(coro)
     assert _is_coro(result)
-    assert asyncio.run(result) == "async:y"
+    assert asyncio.run(result) == 'async:y'
 
 
 # ===================================================================
@@ -401,13 +401,13 @@ async def test_context_manager_in_async():
 
     class SyncCM:
         def __enter__(self_):
-            return _identity("z")
+            return _identity('z')
 
         def __exit__(self_, *a):
             return
 
     with SyncCM() as result:
-        assert result == "sync:z"
+        assert result == 'sync:z'
 
 
 # ===================================================================
@@ -421,11 +421,11 @@ async def test_property_in_async():
     class Obj:
         @property
         def val(self_):
-            return _identity("prop")
+            return _identity('prop')
 
     obj = Obj()
     result = obj.val
-    assert result == "sync:prop"
+    assert result == 'sync:prop'
 
 
 # ===================================================================
@@ -437,10 +437,10 @@ def test_deep_recursion_sync():
 
     def recurse(n):
         if n <= 0:
-            return _identity("deep")
+            return _identity('deep')
         return recurse(n - 1)
 
-    assert recurse(50) == "sync:deep"
+    assert recurse(50) == 'sync:deep'
 
 
 @pytest.mark.asyncio
@@ -449,11 +449,11 @@ async def test_deep_recursion_async():
 
     async def recurse(n):
         if n <= 0:
-            return await _identity("deep")
+            return await _identity('deep')
         return await recurse(n - 1)
 
     result = await recurse(50)
-    assert result == "async:deep"
+    assert result == 'async:deep'
 
 
 # ===================================================================
@@ -463,27 +463,27 @@ async def test_deep_recursion_async():
 def test_mixed_call_patterns():
     """Alternate between sync and async calls in a single test run."""
     # sync
-    assert _identity("s1") == "sync:s1"
-    assert _identity("s2") == "sync:s2"
+    assert _identity('s1') == 'sync:s1'
+    assert _identity('s2') == 'sync:s2'
 
     async def mixed():
         # async
-        r1 = await _identity("a1")
-        assert r1 == "async:a1"
+        r1 = await _identity('a1')
+        assert r1 == 'async:a1'
 
         # sync wrapper inside async
         def sync_wrap():
-            return _identity("a2")
+            return _identity('a2')
 
         r2 = sync_wrap()
-        assert r2 == "sync:a2"
+        assert r2 == 'sync:a2'
 
-        return "ok"
+        return 'ok'
 
-    assert asyncio.run(mixed()) == "ok"
+    assert asyncio.run(mixed()) == 'ok'
 
     # back to sync
-    assert _identity("s3") == "sync:s3"
+    assert _identity('s3') == 'sync:s3'
 
 
 # ===================================================================
@@ -502,17 +502,17 @@ async def test_generator_in_async_yields_coroutine():
     """
 
     def gen():
-        yield _identity("u1")
-        yield _identity("u2")
+        yield _identity('u1')
+        yield _identity('u2')
 
     g = gen()
     r1 = next(g)
     r2 = next(g)
 
-    assert _is_coro(r1), "generator inside async def yields coroutines"
+    assert _is_coro(r1), 'generator inside async def yields coroutines'
     assert _is_coro(r2)
-    assert await r1 == "async:u1"
-    assert await r2 == "async:u2"
+    assert await r1 == 'async:u1'
+    assert await r2 == 'async:u2'
 
 
 # ===================================================================
@@ -529,12 +529,12 @@ async def test_generator_asyncio_gather_pattern():
     """
 
     def gen():
-        yield _identity("g1")
-        yield _identity("g2")
-        yield _identity("g3")
+        yield _identity('g1')
+        yield _identity('g2')
+        yield _identity('g3')
 
     results = await asyncio.gather(*gen())
-    assert results == ["async:g1", "async:g2", "async:g3"]
+    assert results == ['async:g1', 'async:g2', 'async:g3']
 
 
 # ===================================================================
@@ -549,13 +549,13 @@ async def test_async_with_aenter():
 
     class AsyncCM:
         async def __aenter__(self_):
-            return await _identity("cm")
+            return await _identity('cm')
 
         async def __aexit__(self_, *a):
             pass
 
     async with AsyncCM() as result:
-        assert result == "async:cm"
+        assert result == 'async:cm'
 
 
 # ===================================================================
@@ -571,11 +571,11 @@ def test_generator_driven_from_sync_stays_sync():
     """
 
     def gen():
-        yield _identity("v1")
-        yield _identity("v2")
+        yield _identity('v1')
+        yield _identity('v2')
 
     results = list(gen())
-    assert results == ["sync:v1", "sync:v2"]
+    assert results == ['sync:v1', 'sync:v2']
 
 
 # ===================================================================
@@ -589,14 +589,14 @@ async def test_nested_generators_skipped():
 
     def outer_gen():
         def inner_gen():
-            yield _identity("nested")
+            yield _identity('nested')
 
         yield from inner_gen()
 
     g = outer_gen()
     r = next(g)
     assert _is_coro(r)
-    assert await r == "async:nested"
+    assert await r == 'async:nested'
 
 
 # ===================================================================
@@ -614,11 +614,11 @@ async def test_generator_inside_sync_def_stays_sync():
 
     def sync_maker():
         def gen():
-            yield _identity("sync-maker")
+            yield _identity('sync-maker')
 
         return list(gen())
 
     # Even when called from async, sync_maker drives the generator
     # from its own sync frame.
     results = sync_maker()
-    assert results == ["sync:sync-maker"]
+    assert results == ['sync:sync-maker']

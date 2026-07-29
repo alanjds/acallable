@@ -10,10 +10,10 @@ from acallable import acallable
 @acallable
 class Fetcher:
     def __call__(self, url: str) -> str:
-        return f"sync: {url}"
+        return f'sync: {url}'
 
     async def __acall__(self, url: str) -> str:
-        return f"async: {url}"
+        return f'async: {url}'
 
 
 def test_full_class_decoration_sync_context():
@@ -21,11 +21,11 @@ def test_full_class_decoration_sync_context():
     fetcher = Fetcher()
 
     def sync_main():
-        body = fetcher("https://example.com")  # calls __call__
+        body = fetcher('https://example.com')  # calls __call__
         return body
 
     result = sync_main()
-    assert result == "sync: https://example.com"
+    assert result == 'sync: https://example.com'
 
 
 @pytest.mark.asyncio
@@ -34,11 +34,11 @@ async def test_full_class_decoration_async_context():
     fetcher = Fetcher()
 
     async def async_main():
-        body = await fetcher("https://example.com")  # calls __acall__
+        body = await fetcher('https://example.com')  # calls __acall__
         return body
 
     result = await async_main()
-    assert result == "async: https://example.com"
+    assert result == 'async: https://example.com'
 
 
 # --- Test 7: Inheritance (as mentioned in README) ---
@@ -47,16 +47,16 @@ async def test_full_class_decoration_async_context():
 @acallable
 class BaseClass1:
     def __call__(self) -> str:
-        return "base_sync"
+        return 'base_sync'
 
     async def __acall__(self) -> str:
-        return "base_async"
+        return 'base_async'
 
 
 @acallable
 class BaseClass2:
     def __call__(self) -> str:
-        return "base_sync"
+        return 'base_sync'
     # No __acall__ defined - should default to wrapping
 
 
@@ -70,42 +70,42 @@ class DerivedClass2(BaseClass2):
 
 class DerivedClass12(BaseClass1):
     async def __acall__(self) -> str:
-        return "derived_async"
+        return 'derived_async'
     # super defined __call__. Use it
 
 
 class DerivedClass22(BaseClass2):
     async def __acall__(self) -> str:
-        return "derived_async"
+        return 'derived_async'
     # super defined __call__. Use it
 
 
 class DerivedClass13(BaseClass1):
     def __call__(self) -> str:
-        return "derived_sync"
+        return 'derived_sync'
     # super defined __acall__. Use it
 
 
 class DerivedClass23(BaseClass2):
     def __call__(self) -> str:
-        return "derived_sync"
+        return 'derived_sync'
     # super have no __acall__. Wrap our __call__
 
 
 class DerivedClass14(BaseClass1):
     def __call__(self) -> str:
-        return "derived_sync"
+        return 'derived_sync'
 
     async def __acall__(self) -> str:
-        return "derived_async"
+        return 'derived_async'
 
 
 class DerivedClass24(BaseClass2):
     def __call__(self) -> str:
-        return "derived_sync"
+        return 'derived_sync'
 
     async def __acall__(self) -> str:
-        return "derived_async"
+        return 'derived_async'
 
 
 def test_identity():
@@ -155,12 +155,12 @@ class BaseWithInitSubclass:
         cls.marked = True
 
     def __call__(self) -> str:
-        return "base"
+        return 'base'
 
 
 class DerivedWithMark(BaseWithInitSubclass):
     def __call__(self) -> str:
-        return "derived"
+        return 'derived'
 
 
 def test_init_subclass_hook_preserved():
@@ -171,12 +171,12 @@ def test_init_subclass_hook_preserved():
 def test_init_subclass_hook_derived_dispatches():
     """Derived class with __call__ override should still get the dispatcher."""
     d = DerivedWithMark()
-    assert d() == "derived"
+    assert d() == 'derived'
 
     async def run():
         result = d()
         assert not isinstance(result, str)
-        assert await result == "derived"
+        assert await result == 'derived'
 
     asyncio.run(run())
 
@@ -190,19 +190,19 @@ class BaseWithInitSubclassKwarg:
         cls.tag = tag
 
     def __call__(self) -> str:
-        return "base"
+        return 'base'
 
 
-class DerivedTagged(BaseWithInitSubclassKwarg, tag="hello"):
+class DerivedTagged(BaseWithInitSubclassKwarg, tag='hello'):
     def __call__(self) -> str:
-        return "tagged"
+        return 'tagged'
 
 
 def test_init_subclass_hook_kwargs():
     """Keyword arguments to __init_subclass__ should be forwarded."""
-    assert DerivedTagged.tag == "hello"
+    assert DerivedTagged.tag == 'hello'
     d = DerivedTagged()
-    assert d() == "tagged"
+    assert d() == 'tagged'
 
 
 # --- Test: __init__ preservation on @acallable classes ---
@@ -217,9 +217,9 @@ class ClassWithInit:
 
 def test_init_preserved():
     """__init__ should work normally on @acallable classes."""
-    obj = ClassWithInit("test_value")
-    assert obj.value == "test_value"
-    assert obj() == "test_value"
+    obj = ClassWithInit('test_value')
+    assert obj.value == 'test_value'
+    assert obj() == 'test_value'
 
 
 # --- Test: __slots__ compatibility on @acallable classes ---
@@ -232,26 +232,26 @@ class SlottedClass:
         self._value = value
 
     def __call__(self) -> str:
-        return f"sync: {self._value}"
+        return f'sync: {self._value}'
 
     async def __acall__(self) -> str:
-        return f"async: {self._value}"
+        return f'async: {self._value}'
 
 
 def test_slotted_class_sync():
-    obj = SlottedClass("hello")
-    assert obj() == "sync: hello"
+    obj = SlottedClass('hello')
+    assert obj() == 'sync: hello'
 
 
 @pytest.mark.asyncio
 async def test_slotted_class_async():
-    obj = SlottedClass("hello")
+    obj = SlottedClass('hello')
     result = await obj()
-    assert result == "async: hello"
+    assert result == 'async: hello'
 
 
 def test_slotted_class_no_dict():
-    obj = SlottedClass("hello")
+    obj = SlottedClass('hello')
     with pytest.raises(AttributeError):
         obj.__dict__
 
@@ -261,10 +261,10 @@ class SlottedBase:
     __slots__ = ()
 
     def __call__(self) -> str:
-        return "base_sync"
+        return 'base_sync'
 
     async def __acall__(self) -> str:
-        return "base_async"
+        return 'base_async'
 
 
 class SlottedDerived(SlottedBase):
@@ -274,25 +274,25 @@ class SlottedDerived(SlottedBase):
         self._val = val
 
     def __call__(self) -> str:
-        return f"derived_sync: {self._val}"
+        return f'derived_sync: {self._val}'
 
     async def __acall__(self) -> str:
-        return f"derived_async: {self._val}"
+        return f'derived_async: {self._val}'
 
 
 def test_slotted_inheritance_sync():
-    obj = SlottedDerived("test")
-    assert obj() == "derived_sync: test"
+    obj = SlottedDerived('test')
+    assert obj() == 'derived_sync: test'
 
 
 @pytest.mark.asyncio
 async def test_slotted_inheritance_async():
-    obj = SlottedDerived("test")
+    obj = SlottedDerived('test')
     result = await obj()
-    assert result == "derived_async: test"
+    assert result == 'derived_async: test'
 
 
 def test_slotted_derived_no_dict():
-    obj = SlottedDerived("test")
+    obj = SlottedDerived('test')
     with pytest.raises(AttributeError):
         obj.__dict__

@@ -109,7 +109,7 @@ def _install_class_dispatcher(klass: type) -> None:
     The async path looks up `__acall__` dynamically via MRO (`self.__acall__`),
     making subclasse overrides being respected automatically.
     """
-    original_call: Callable = klass.__dict__["__call__"]
+    original_call: Callable = klass.__dict__['__call__']
     klass.__acallable_sync__ = original_call
 
     @functools.wraps(original_call)
@@ -134,10 +134,10 @@ def _as_acallable_type[T: type](klass: T) -> T:
     """
     # If the class or a parent was already decorated, reuse its stored original
     # sync callable instead of capturing our own dispatcher as the "original".
-    original_call = getattr(klass, "__acallable_sync__", klass.__call__)
+    original_call = getattr(klass, '__acallable_sync__', klass.__call__)
     klass.__acallable_sync__ = original_call
 
-    original_acall = getattr(klass, "__acall__", None)
+    original_acall = getattr(klass, '__acall__', None)
     if original_acall is None:
         # No user-provided __acall__: auto-generate one that wraps __call__
         @functools.wraps(original_call)
@@ -154,7 +154,7 @@ def _as_acallable_type[T: type](klass: T) -> T:
 
     klass.__call__ = dispatcher
 
-    original_init_subclass = klass.__dict__.get("__init_subclass__", None)
+    original_init_subclass = klass.__dict__.get('__init_subclass__', None)
 
     if isinstance(original_init_subclass, classmethod):
         original_init_subclass = original_init_subclass.__func__
@@ -164,7 +164,7 @@ def _as_acallable_type[T: type](klass: T) -> T:
         if original_init_subclass:
             # Preexisting __init_subclass__:
             original_init_subclass(cls, **kwargs)
-        if "__call__" in cls.__dict__:
+        if '__call__' in cls.__dict__:
             _install_class_dispatcher(cls)
 
     klass.__init_subclass__ = classmethod(combined)
