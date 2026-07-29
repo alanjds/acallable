@@ -37,3 +37,9 @@ include = ["acallable*"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = ["-v", "-s", "-rxXs", "--continue-on-collection-errors"]
+
+[tool.ty.rules]
+invalid-await = "warn"  # or "ignore"
+
+[tool.pyright]
+reportGeneralTypeIssues = "warning"  # or "none"

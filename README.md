@@ -259,6 +259,31 @@ async def foo(): return await compute(3)  # also returns 6
 This way you can create APIs today that will have real async I/O in the future.
 No need to break the contracts later.
 
+### Static typing caveats
+
+Static typers are currently (2026) not following the decoration "magic",
+leading to detecting errors like `__await__ may be missing`. I tried my best but
+could not "fix" these by luring them into accepting that
+a class `__call__` can return an `int | Awaitable[int]` for example.
+
+My current advise is to lower the typechecker issue level to "warning" or to "ignore"
+for now. If this lib gets traction, they may someday provide a better option. Until that:
+
+```toml
+# pyproject.toml
+...
+
+[tool.ty.rules]
+invalid-await = "warn"  # or "ignore"
+
+[tool.pyright]
+reportGeneralTypeIssues = "warning"  # or "none"
+
+[tool.mypy.overrides]
+disable_error_code = ["operator"]  # Sorry, no way to force "warning" here.
+```
+
+
 ### Implementation inspiration & acknowledgements
 
 [zyncio][zyncio] (by Benjy Wiener) solves the same problem from the opposite direction: write
