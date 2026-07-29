@@ -220,3 +220,79 @@ def test_init_preserved():
     obj = ClassWithInit("test_value")
     assert obj.value == "test_value"
     assert obj() == "test_value"
+
+
+# --- Test: __slots__ compatibility on @acallable classes ---
+
+@acallable
+class SlottedClass:
+    __slots__ = ('_value',)
+
+    def __init__(self, value: str):
+        self._value = value
+
+    def __call__(self) -> str:
+        return f"sync: {self._value}"
+
+    async def __acall__(self) -> str:
+        return f"async: {self._value}"
+
+
+def test_slotted_class_sync():
+    obj = SlottedClass("hello")
+    assert obj() == "sync: hello"
+
+
+@pytest.mark.asyncio
+async def test_slotted_class_async():
+    obj = SlottedClass("hello")
+    result = await obj()
+    assert result == "async: hello"
+
+
+def test_slotted_class_no_dict():
+    obj = SlottedClass("hello")
+    with pytest.raises(AttributeError):
+        obj.__dict__
+
+
+@acallable
+class SlottedBase:
+    __slots__ = ()
+
+    def __call__(self) -> str:
+        return "base_sync"
+
+    async def __acall__(self) -> str:
+        return "base_async"
+
+
+class SlottedDerived(SlottedBase):
+    __slots__ = ('_val',)
+
+    def __init__(self, val: str):
+        self._val = val
+
+    def __call__(self) -> str:
+        return f"derived_sync: {self._val}"
+
+    async def __acall__(self) -> str:
+        return f"derived_async: {self._val}"
+
+
+def test_slotted_inheritance_sync():
+    obj = SlottedDerived("test")
+    assert obj() == "derived_sync: test"
+
+
+@pytest.mark.asyncio
+async def test_slotted_inheritance_async():
+    obj = SlottedDerived("test")
+    result = await obj()
+    assert result == "derived_async: test"
+
+
+def test_slotted_derived_no_dict():
+    obj = SlottedDerived("test")
+    with pytest.raises(AttributeError):
+        obj.__dict__
