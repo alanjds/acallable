@@ -8,7 +8,7 @@ version = "0.0.1"
 authors = [
   { name="Alan Justino", email="alan.justino@yahoo.com.br" },
 ]
-description = "Allows the same function to have an async version selected automatically"
+description = "Allows the sync function (`__call__`) to have an async version (`__acall__`)selected automatically"
 readme = "README.md"
 requires-python = ">=3.12"
 classifiers = [
