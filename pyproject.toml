@@ -33,6 +33,15 @@ Issues = "https://github.com/alanjds/acallable/issues"
 where = ["."]
 include = ["acallable*"]
 
+[tool.bumpversion]
+current_version = "0.0.1"
+commit = true
+tag = true
+tag_name = "v{new_version}"
+
+[[tool.bumpversion.files]]
+filename = "acallable/__init__.py"
+
 [tool.ruff]
 line-length = 120
 lint.extend-select = [
