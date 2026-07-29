@@ -41,10 +41,12 @@ class Acallable[T](Callable):
 
     @property
     def sync(self) -> Callable[..., T]:
+        """Always the synchronous (`def`) version of this Callable"""
         return self._sync_func
 
     @property
     def __acall__(self) -> Callable[..., Awaitable[T]]:
+        """Always the asynchronous (`async def`) version of this Callable"""
         return self._async_func
 
     def __call__(self, *args, **kwargs) ->  T | Awaitable[T]:
