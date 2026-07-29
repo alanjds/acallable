@@ -186,10 +186,10 @@ def acallable[T: type](obj: T) -> T: ...
 def acallable[T](obj: Callable[..., T]) -> Acallable[T]: ...
 
 def acallable(obj):
-    """Decorated callable dispatches __call__ or __acall__
+    """Decorated callable dispatches `__call__` or `__acall__`
 
-    When decorated is called on sync context, uses __call__
-    When decorated is called on async context, uses __acall__
+    When decorated is called on sync context, uses `__call__`
+    When decorated is called on async context, uses `__acall__`
 
     Appliable on classes:
     ```
