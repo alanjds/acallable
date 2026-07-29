@@ -53,6 +53,11 @@ class Acallable[T](Callable):
         return self._async_func
 
     def __call__(self, *args, **kwargs) ->  T | Awaitable[T]:
+        """Dispatches async or sync based on where it was called
+
+        When called on some sync context, uses `self.sync`
+        When called on some async context, uses `self.__acall__`
+        """
         if _is_async_context(sys._getframe().f_back):
             return self.__acall__(*args, **kwargs)
         else:
