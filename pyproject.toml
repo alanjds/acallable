@@ -33,6 +33,11 @@ Issues = "https://github.com/alanjds/acallable/issues"
 where = ["."]
 include = ["acallable*"]
 
+[tool.ruff]
+lint.extend-ignore = [
+    'N807', # Function name __acall__ starts with `__`!
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"

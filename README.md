@@ -281,6 +281,11 @@ reportGeneralTypeIssues = "warning"  # or "none"
 
 [tool.mypy.overrides]
 disable_error_code = ["operator"]  # Sorry, no way to force "warning" here.
+
+[tool.ruff]
+lint.extend-ignore = [
+    'N807', # Allow functions named __acall__ to start with `__`
+]
 ```
 
 
