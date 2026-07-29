@@ -51,7 +51,16 @@ class Acallable[T](Callable, Awaitable[T]):
             return self.sync(*args, **kwargs)
 
     def acall(self, fn: Callable[..., Awaitable[T]]) -> Acallable[T]:
-        """Used like @property.set"""
+        """Sets the __acall__ of this function. Used like `@property.set`::
+
+            @acallable
+            def func(...):
+                return 'called from some `def`'
+
+            @func.acall
+            async def func(...):
+                return 'called from some `async def`'
+        """
         self._async_func = fn
         return self
 
@@ -161,18 +170,18 @@ def acallable(obj):
             return 'called from some `def`'
 
         async def __acall__(self, ...):
-            return 'called from some `async def`
+            return 'called from some `async def`'
     ```
 
     Appliable on functions and methods:
     ```
     @acallable
     def func(...):
-        return 'called from some `def`
+        return 'called from some `def`'
 
     @func.acall
     async def func(...):
-        return 'called from some `async def`
+        return 'called from some `async def`'
     ```
     """
     if isinstance(obj, type):
