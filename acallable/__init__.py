@@ -33,6 +33,9 @@ class Acallable[T](Callable):
         async def __acall__(*args, **kwargs) -> Awaitable[T]:
             return fn(*args, **kwargs)
 
+        if fn is None:
+            raise TypeError()
+
         self._sync_func = fn
         self._async_func = __acall__
 
@@ -66,6 +69,12 @@ class Acallable[T](Callable):
 
     def __getattr__(self, name):
         return getattr(self._sync_func, name)
+
+    def __setattr__(self, name, value):
+        if name == '_sync_func' or 'name' in self.__dict__:
+            super().__setattr__(name, value)
+        else:
+            setattr(self._sync_func, name, value)
 
     def __get__(self, instance, owner):
         """Descriptor protocol: bind to instance when accessed as a method."""
