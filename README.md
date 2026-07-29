@@ -239,7 +239,7 @@ async def async_main():
 ```
 
 The decorated inheritance is not touched: `isinstance(fetcher, Fetcher)` works,
-subclassing works, type checkers are kept happy.
+subclassing works, type checkers are kept _mostly_ happy.
 
 ### Default async body
 
@@ -261,13 +261,14 @@ No need to break the contracts later.
 
 ### Static typing caveats
 
-Static typers are currently (2026) not following the decoration "magic",
-leading to detecting errors like `__await__ may be missing`. I tried my best but
-could not "fix" these by luring them into accepting that
+Static typers are currently (2026) not following the decoration code "magic",
+leading to detecting false errors like `__await__ may be missing`. I tried my best but
+could not "fix" these by luring typecheckers into accepting that
 a class `__call__` can return an `int | Awaitable[int]` for example.
 
 My current advise is to lower the typechecker issue level to "warning" or to "ignore"
-for now. If this lib gets traction, they may someday provide a better option. Until that:
+for now for the await-related kind of checks below. If this lib gets traction,
+they someday may provide a better option. Until that:
 
 ```toml
 # pyproject.toml
@@ -284,7 +285,7 @@ disable_error_code = ["operator"]  # Sorry, no way to force "warning" here.
 
 [tool.ruff]
 lint.extend-ignore = [
-    'N807', # Allow functions named __acall__ to start with `__`
+    'N807',  # Allow functions named __acall__ to start with `__`
 ]
 ```
 
