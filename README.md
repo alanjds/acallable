@@ -4,9 +4,9 @@ Write one named sync function with an alternative async version.
 Call it from sync or async code. No name duplication.
 
 ```python
-from acallable import awaitable
+from acallable import acallable
 
-@awaitable
+@acallable
 def fetch(url: str) -> str:
     print('synchronous version')
     import httpx
@@ -45,7 +45,7 @@ When not provided, the async version is just the sync one wrapped in a coroutine
 Also works with classes (and methods btw):
 
 ```python
-@awaitable
+@acallable
 class Fetcher:
     def __call__(self, url: str) -> str:          # sync body
         import httpx
@@ -109,7 +109,7 @@ class Runner:
 This example above does not work and uses the `async` reserved word,
 but the idea is not bad. `acallable` implements this idea.
 
-`@awaitable` decorates the sync body; `@fn.acall` registers the async body.
+`@acallable` decorates the sync body; `@fn.acall` registers the async body.
 No new syntax and no language changes.
 
 ### When `__acall__` vs. `__call__`? When "called from an awaitable context"!
@@ -169,9 +169,9 @@ The frame-inspection overhead using `sys._getframe` and `co_flags` was
 ### Decorating functions
 
 ```python
-from acallable import awaitable
+from acallable import acallable
 
-@awaitable
+@acallable
 def greet(name: str) -> str:
     return f"Hello, {name}"          # sync body: runs from plain def
 
@@ -190,13 +190,13 @@ print(await greet("world"))          # Hello, world
 ### Decorating a Class method
 
 ```python
-from acallable import awaitable
+from acallable import acallable
 
 class DataStore:
     def __init__(db, ...):
         ...
 
-    @awaitable
+    @acallable
     def save(self, record: dict) -> None:
         db.execute_sync(record)
 
@@ -213,12 +213,12 @@ async def foo(): async store.save({"k": "v"})   # async
 ### Decorating a whole Class
 
 Define `__call__` (sync) and `__acall__` (async) directly on the class body.
-`@awaitable` wires the dispatcher automatically:
+`@acallable` wires the dispatcher automatically:
 
 ```python
-from acallable import awaitable
+from acallable import acallable
 
-@awaitable
+@acallable
 class Fetcher:
     def __call__(self, url: str) -> str:          # sync body
         import httpx
@@ -248,7 +248,7 @@ the async path automatically wraps the sync body in a coroutine.
 Simple functions that have no real async I/O _yet_ get both paths for free:
 
 ```python
-@awaitable
+@acallable
 def compute(x: int) -> int:
     return x * 2
 

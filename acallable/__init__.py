@@ -27,7 +27,7 @@ def _is_async_context(frame):
     return False
 
 
-class _Awaitable_Function[T](Callable, Awaitable[T]):
+class Acallable[T](Callable, Awaitable[T]):
     def __init__(self, fn: Callable[..., T]):
         # Default async as the wrapped sync
         async def __acall__(*args, **kwargs) -> Awaitable[T]:
@@ -50,7 +50,7 @@ class _Awaitable_Function[T](Callable, Awaitable[T]):
         else:
             return self.sync(*args, **kwargs)
 
-    def acall(self, fn: Callable[..., Awaitable[T]]) -> _Awaitable_Function[T]:
+    def acall(self, fn: Callable[..., Awaitable[T]]) -> Acallable[T]:
         """Used like @property.set"""
         self._async_func = fn
         return self
@@ -65,7 +65,7 @@ class _Awaitable_Function[T](Callable, Awaitable[T]):
         # Return a lightweight bound callable that pre-fills `instance`
         # as the first argument of both sync and async implementations.
 
-        bound = _Awaitable_Function.__new__(_Awaitable_Function)
+        bound = Acallable.__new__(Acallable)
         bound._sync_func = functools.partial(self._sync_func, instance)
         bound._async_func = functools.partial(self._async_func, instance)
         return bound
@@ -143,11 +143,11 @@ def _as_awaitable_type[T: type](klass: T) -> T:
     return klass
 
 @overload
-def awaitable[T: type](obj: T) -> T: ...
+def acallable[T: type](obj: T) -> T: ...
 @overload
-def awaitable[T](obj: Callable[..., T]) -> _Awaitable_Function[T]: ...
+def acallable[T](obj: Callable[..., T]) -> Acallable[T]: ...
 
-def awaitable(obj):
+def acallable(obj):
     """Decorated callable dispatches __call__ or __acall__
 
     When decorated is called on sync context, uses __call__
@@ -155,10 +155,10 @@ def awaitable(obj):
 
     Appliable on classes:
     ```
-    @awaitable
+    @acallable
     class A:
         def __call__(self, ...):
-            return 'called from some `def`
+            return 'called from some `def`'
 
         async def __acall__(self, ...):
             return 'called from some `async def`
@@ -166,7 +166,7 @@ def awaitable(obj):
 
     Appliable on functions and methods:
     ```
-    @awaitable
+    @acallable
     def func(...):
         return 'called from some `def`
 
@@ -178,4 +178,4 @@ def awaitable(obj):
     if isinstance(obj, type):
         return _as_awaitable_type(obj)
     else:
-        return _Awaitable_Function(obj)
+        return Acallable(obj)

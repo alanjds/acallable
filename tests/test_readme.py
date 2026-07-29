@@ -2,12 +2,12 @@ import asyncio
 
 import pytest
 
-from acallable import awaitable
+from acallable import acallable
 
 # --- Existing tests remain ---
 
 # --- Test 1: Basic sync/async function with explicit @fn.acall ---
-@awaitable
+@acallable
 def fetch(url: str) -> str:
     return f"sync: {url}"
 
@@ -51,7 +51,7 @@ async def test_my_async_main_example():
 
 # --- Test 3: Function without explicit async body (default wrapper behavior) ---
 
-@awaitable
+@acallable
 def compute(x: int) -> int:
     return x * 2
 
@@ -67,7 +67,7 @@ async def test_default_async_wrapper_async_context():
 # --- Test 4: Class method decoration ---
 
 class DataStore:
-    @awaitable
+    @acallable
     def save(self, record: dict) -> None:
         self.last_sync_result = f"sync: {record}"
 
@@ -103,7 +103,7 @@ async def test_class_method_decorator_async_context():
 
 
 def test_class_can_be_decorated():
-    @awaitable
+    @acallable
     class Fetcher:
         def __call__(self, url: str) -> str:
             return f"sync: {url}"
@@ -126,7 +126,7 @@ def test_method_name_preservation():
 
     # For class methods, let's create a simpler test
     class MyClass:
-        @awaitable
+        @acallable
         def my_method(self, x: int) -> int:
             return x * 2
 
@@ -144,7 +144,7 @@ def test_method_name_preservation():
 
 # --- Test 9: Method name accessibility via .sync and .__acall__ properties ---
 
-@awaitable
+@acallable
 def greet(name: str) -> str:
     return f"Hello {name}"
 
@@ -196,11 +196,11 @@ def test_acall_access():
 
 # --- Test 10: Multiple decorated functions in same module ---
 
-@awaitable
+@acallable
 def func_a(x: int) -> int:
     return x + 1
 
-@awaitable
+@acallable
 def func_b(x: int) -> int:
     return x * 2
 

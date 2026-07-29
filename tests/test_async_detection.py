@@ -1,7 +1,7 @@
 """
 Stress tests for the async context detection via frame introspection.
 
-When @awaitable is called from a sync def, it must return the
+When @acallable is called from a sync def, it must return the
 plain sync value.  When called from an async def, it must return
 a coroutine (the __acall__ result).
 """
@@ -10,15 +10,15 @@ import asyncio
 
 import pytest
 
-from acallable import awaitable
+from acallable import acallable
 
 # ---------------------------------------------------------------------------
 # helpers
 # ---------------------------------------------------------------------------
 
-@awaitable
+@acallable
 def _identity(x: str) -> str:
-    """A simple awaitable-wrapped function that just echoes."""
+    """A simple acallable-wrapped function that just echoes."""
     return f"sync:{x}"
 
 
@@ -277,11 +277,11 @@ async def test_async_gen_with_sync_part():
 
 
 # ===================================================================
-# 12 -- method injection: class with @awaitable methods called cross-context
+# 12 -- method injection: class with @acallable methods called cross-context
 # ===================================================================
 
 class Fixture:
-    @awaitable
+    @acallable
     def method(self, val: str) -> str:
         return f"sync-method:{val}"
 
@@ -318,7 +318,7 @@ def test_class_method_sync_wrapper_in_async():
 # 13 -- decorated class with cross-context calls
 # ===================================================================
 
-@awaitable
+@acallable
 class CallableClass:
     def __call__(self, val: str) -> str:
         return f"sync-class:{val}"

@@ -4,10 +4,10 @@ import asyncio
 
 import pytest
 
-from acallable import awaitable
+from acallable import acallable
 
 
-@awaitable
+@acallable
 class Fetcher:
     def __call__(self, url: str) -> str:
         return f"sync: {url}"
@@ -44,7 +44,7 @@ async def test_full_class_decoration_async_context():
 # --- Test 7: Inheritance (as mentioned in README) ---
 
 
-@awaitable
+@acallable
 class BaseClass1:
     def __call__(self) -> str:
         return "base_sync"
@@ -53,7 +53,7 @@ class BaseClass1:
         return "base_async"
 
 
-@awaitable
+@acallable
 class BaseClass2:
     def __call__(self) -> str:
         return "base_sync"
@@ -145,8 +145,8 @@ def test_inheritance(baseclass: type, derivedclass: type, sync_expected: str, as
     asyncio.run(test_async())
 
 
-# --- Test: __init_subclass__ preservation on @awaitable classes ---
-@awaitable
+# --- Test: __init_subclass__ preservation on @acallable classes ---
+@acallable
 class BaseWithInitSubclass:
     """Base that sets a class attribute via __init_subclass__."""
 
@@ -164,7 +164,7 @@ class DerivedWithMark(BaseWithInitSubclass):
 
 
 def test_init_subclass_hook_preserved():
-    """The user's own __init_subclass__ should still fire after @awaitable."""
+    """The user's own __init_subclass__ should still fire after @acallable."""
     assert DerivedWithMark.marked is True
 
 
@@ -181,7 +181,7 @@ def test_init_subclass_hook_derived_dispatches():
     asyncio.run(run())
 
 
-@awaitable
+@acallable
 class BaseWithInitSubclassKwarg:
     """Base that accepts a keyword arg via __init_subclass__."""
 
@@ -205,8 +205,8 @@ def test_init_subclass_hook_kwargs():
     assert d() == "tagged"
 
 
-# --- Test: __init__ preservation on @awaitable classes ---
-@awaitable
+# --- Test: __init__ preservation on @acallable classes ---
+@acallable
 class ClassWithInit:
     def __init__(self, value: str):
         self.value = value
@@ -216,7 +216,7 @@ class ClassWithInit:
 
 
 def test_init_preserved():
-    """__init__ should work normally on @awaitable classes."""
+    """__init__ should work normally on @acallable classes."""
     obj = ClassWithInit("test_value")
     assert obj.value == "test_value"
     assert obj() == "test_value"
