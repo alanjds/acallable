@@ -15,7 +15,7 @@ def _is_async_context(frame):
     belongs to an `async def`.
 
     Generator frames (`CO_GENERATOR`) are skipped as its body runs
-    as part of who drives it. Does not define its own context.
+    as part of who drives it. Considered as not defining its own context.
     """
     while frame is not None:
         if frame.f_code.co_flags & _IS_GENERATOR:
