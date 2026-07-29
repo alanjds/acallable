@@ -73,7 +73,7 @@ class Acallable[T](Callable):
         return getattr(self._sync_func, name)
 
     def __setattr__(self, name, value):
-        if name == '_sync_func' or 'name' in self.__dict__:
+        if name == '_sync_func' or name in self.__dict__:
             super().__setattr__(name, value)
         else:
             setattr(self._sync_func, name, value)
