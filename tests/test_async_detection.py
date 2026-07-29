@@ -622,3 +622,115 @@ async def test_generator_inside_sync_def_stays_sync():
     # from its own sync frame.
     results = sync_maker()
     assert results == ['sync:sync-maker']
+
+
+# ===================================================================
+# 26 -- all comprehension types
+# ===================================================================
+
+
+def test_gen_expr_in_sync():
+    gen = (_identity(x) for x in ('a',))
+    assert next(gen) == 'sync:a'
+
+
+@pytest.mark.asyncio
+async def test_gen_expr_in_async():
+    gen = (_identity(x) for x in ('a',))
+    result = next(gen)
+    assert _is_coro(result)
+    assert await result == 'async:a'
+
+
+def test_dict_comp_in_sync():
+    results = {k: _identity(k) for k in ('b',)}
+    assert results == {'b': 'sync:b'}
+
+
+@pytest.mark.asyncio
+async def test_dict_comp_in_async():
+    results = {k: _identity(k) for k in ('b',)}
+    assert len(results) == 1
+    v = results['b']
+    assert _is_coro(v)
+    assert await v == 'async:b'
+
+
+def test_set_comp_in_sync():
+    results = {_identity(x) for x in ('c',)}
+    assert results == {'sync:c'}
+
+
+@pytest.mark.asyncio
+async def test_set_comp_in_async():
+    results = {_identity(x) for x in ('c',)}
+    assert len(results) == 1
+    (v,) = results
+    assert _is_coro(v)
+    assert await v == 'async:c'
+
+
+def test_nested_comprehensions_in_sync():
+    gen = (_identity(v) for v in ('e',))
+    results = {'d': [next(gen)]}
+    assert results == {'d': ['sync:e']}
+
+
+@pytest.mark.asyncio
+async def test_nested_comprehensions_in_async():
+    gen = (_identity(v) for v in ('e',))
+    result = next(gen)
+    assert _is_coro(result)
+    assert await result == 'async:e'
+
+
+@pytest.mark.asyncio
+async def test_async_list_comp():
+    """PEP 530 async comprehension — only valid inside async def."""
+    async def agen():
+        for x in ('f',):
+            yield x
+
+    results = [x async for x in agen()]
+    assert results == ['f']
+
+
+@pytest.mark.asyncio
+async def test_async_list_comp_with_await():
+    """PEP 530 async comprehension with await inside — only valid in async def."""
+    async def agen():
+        for x in ('g',):
+            yield x
+
+    results = [await _identity(x) async for x in agen()]
+    assert results == ['async:g']
+
+
+def test_mixed_comprehensions_in_sync():
+    gen = (_identity(x) for x in ('h',))
+    dict_comp = {k: _identity(k) for k in ('i',)}
+    set_comp = {_identity(x) for x in ('j',)}
+    assert next(gen) == 'sync:h'
+    assert dict_comp == {'i': 'sync:i'}
+    assert set_comp == {'sync:j'}
+
+
+@pytest.mark.asyncio
+async def test_mixed_comprehensions_in_async():
+    gen = (_identity(x) for x in ('h',))
+    dict_comp = {k: _identity(k) for k in ('i',)}
+    set_comp = {_identity(x) for x in ('j',)}
+
+    result = next(gen)
+    assert _is_coro(result)
+    assert await result == 'async:h'
+
+    assert len(dict_comp) == 1
+    v = dict_comp['i']
+    assert _is_coro(v)
+    assert await v == 'async:i'
+
+    assert len(set_comp) == 1
+    (v,) = set_comp
+    assert _is_coro(v)
+    assert await v == 'async:j'

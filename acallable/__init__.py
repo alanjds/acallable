@@ -19,6 +19,21 @@ def _is_async_context(frame):
     Generator frames (`CO_GENERATOR`) are skipped as its body runs
     as part of who drives it. Considered as not defining its own context.
     """
+    # It would be POSSIBLE to distinguish genexpr from def-yield generators
+    # by inspecting `frame.f_code.co_name == '<genexpr>'` or .co_qualname
+    # This would let me keep `x = (my_acallable(i) for i in range(10))` as transparent
+    # and keep this other generator as sync context:
+    # ```
+    #     def mygen(): for i in range(10):
+    #         for i in range(10):
+    #             yield my_acallable(i)
+    # ```
+    # However what is more confusing?
+    # - Two rules for generators: <genexpr> is transparent; `def..yield` is sync
+    # - Two rules for sync detection: `def` is sync; EXCEPT `def..yield` is transparent
+    # For now, I will reject the first and keep the second option.
+    # A change here _WILL BE_ a breaking change,
+    # but lets see what people think is reasonable and what is nonsense.
     while frame is not None:
         if frame.f_code.co_flags & _IS_GENERATOR:
             # `await` is not possible on this frame, but may be on an upper one
