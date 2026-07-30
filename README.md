@@ -152,8 +152,8 @@ async def compute_many(numbers):
 Should `compute(i)` be `compute.__call__(i)` or `compute.__acall__(i)`?
 
 Here `compute(i)` is called from inside a generator expression. The immediate
-frame is a `CO_GENERATOR`, where `await` is not legal. The _immediate_ context is sync, then
-`asyncio.gather` would receive plain values instead of coroutines.
+frame is a `CO_GENERATOR`, where `await` is not legal. The _immediate_ genexpr context is sync,
+then `asyncio.gather` would receive plain values instead of coroutines.
 However it whould not be correct, as "the call site **IS** inside a frame where `await` is legal".
 
 `acallable` walks up the call stack transparently past any `CO_GENERATOR` frames
