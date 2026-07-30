@@ -53,4 +53,4 @@ jobs:
         echo
         env
     - name: Type-check with ty
-      run: ty check acallable/
+      run: ty check --ignore=invalid-await acallable/

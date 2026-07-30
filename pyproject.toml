@@ -58,7 +58,6 @@ lint.extend-select = [
 ]
 lint.extend-ignore = [
     'S101', # assert is fine
-    'S110',
     'B018', # useless expr. are useful on tests
     'N805', # some self_ are needed to mess not with real self
     'E731', # tests do assign lambdas
