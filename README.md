@@ -121,7 +121,7 @@ The original `__acall__` proposed to dispatch based on the question
 
 However it lets open [the question][acall-question]: what is `x` in this example?
 
-```
+```python
 async def bar():
     x = foo()
     await x
@@ -131,6 +131,7 @@ As `await x` should be `x.__await__`, detecting `x = foo.__acall__()` is not pos
 breaking expectations.
 
 To solve it, `acallable` shifts the `__acall__` choosing question to:
+
 **"Is the call site inside a frame where `await` is legal?"**
 
 With this definition, `x` surely is a coroutine returned by `foo.__acall__()`,
@@ -163,6 +164,17 @@ That let genexpr-inside-gather patterns working correctly.
 The frame-inspection overhead using `sys._getframe` and `co_flags` was
 [reported][frame-detection] in the Python discussion forums as costing less than 1.5µs;
 
+#### Should _all_ `CO_GENERATOR` be transparent?
+
+This is debatable because standard `def gen(): ... yield <something>` is _also_ `CO_GENERATOR`.
+
+The question goes down to one of this confusing solutions:
+1. Two rules for generators: `<genexpr>` is transparent; `def..yield` is sync
+1. Two rules for sync detection: `def` is sync; EXCEPT `def..yield` that is transparent
+
+_FOR NOW_ this lib considers ALL generators transparent (Option 2).
+A future change on this _could_ occur,
+but surely versioned as a breaking change and documented.
 
 ## Usage
 
