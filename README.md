@@ -127,7 +127,7 @@ async def bar():
     await x
 ```
 
-As `await x` should be `x.__await__`, detecting `x = foo.__acall__()` is not possible,
+As `await x` should be `x.__await__()`, detecting `x = foo.__acall__()` is not possible,
 breaking expectations.
 
 To solve it, `acallable` shifts the `__acall__` choosing question to:
@@ -135,7 +135,7 @@ To solve it, `acallable` shifts the `__acall__` choosing question to:
 **"Is the call site inside a frame where `await` is legal?"**
 
 With this definition, `x` surely is a coroutine returned by `foo.__acall__()`,
-because `foo()` is called _inside an `async def`_.
+because `foo()` is called _inside `async def`_.
 
 ## Implementation details
 
