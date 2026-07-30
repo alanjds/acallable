@@ -45,8 +45,15 @@ def _is_async_context(frame):
 
 
 class Acallable[T](Callable):
-    _sync_func: Callable[..., T] | None = None
-    _async_func: Callable[..., Awaitable[T]] | None = None
+    """
+    Functions and methods decorated with `@acallable` are `Acallable`s
+
+    They dispatches async or sync based on where it was called:
+    When called on some sync context, uses `self.sync`
+    When called on some async context, uses `self.__acall__`
+    """
+    _sync_func: Callable[..., T] = None  # ty:ignore[invalid-assignment]
+    _async_func: Callable[..., Awaitable[T]] = None  # ty:ignore[invalid-assignment]
 
     def __init__(self, fn: Callable[..., T]):
         # Default async as the wrapped sync
@@ -62,12 +69,12 @@ class Acallable[T](Callable):
     @property
     def sync(self) -> Callable[..., T]:
         """Always the synchronous (`def`) version of this Callable"""
-        return self._sync_func  # ty:ignore[invalid-return-type]
+        return self._sync_func
 
     @property
     def __acall__(self) -> Callable[..., Awaitable[T]]:
         """Always the asynchronous (`async def`) version of this Callable"""
-        return self._async_func  # ty:ignore[invalid-return-type]
+        return self._async_func
 
     def __call__(self, *args, **kwargs) ->  T | Awaitable[T]:
         """Dispatches async or sync based on where it was called
