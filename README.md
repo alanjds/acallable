@@ -137,7 +137,7 @@ To solve it, `acallable` shifts the `__acall__` choosing question to:
 With this definition, `x` surely is a coroutine returned by `foo.__acall__()`,
 because `foo()` is called _inside an `async def`_.
 
-### Implementation details
+## Implementation details
 
 > **Is the call site inside a frame where `await` is legal?**
 
@@ -275,7 +275,7 @@ No need to break the contracts later.
 
 Static typers are currently (2026) not following the decoration code "magic",
 leading to detecting false errors like `__await__ may be missing`. I tried my best but
-could not "fix" these by luring typecheckers into accepting that
+could not make typecheckers "behave" by luring them into accepting that
 a class `__call__` can return an `int | Awaitable[int]` for example.
 
 My current advise is to lower the typechecker issue level to "warning" or to "ignore"
