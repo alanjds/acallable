@@ -143,7 +143,7 @@ def _install_class_dispatcher(klass: Callable) -> None:
         if _is_async_context(sys._getframe().f_back):
             return self.__acall__(*args, **kwargs)
         else:
-            return original_call(self, *args, **kwargs)
+            return self.__acallable_sync__(*args, **kwargs)
 
     klass.__call__ = dispatcher  # ty:ignore[unresolved-attribute]
 
