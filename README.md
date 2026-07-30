@@ -132,14 +132,14 @@ breaking expectations.
 
 To solve it, `acallable` shifts the `__acall__` choosing question to:
 
-**"Is the call site inside a frame where `await` is legal?"**
+**"Is the call site inside a code where `await` is legal?"**
 
 With this definition, `x` surely is a coroutine returned by `foo.__acall__()`,
 because `foo()` is called _inside `async def`_.
 
 ## Implementation details
 
-> **Is the call site inside a frame where `await` is legal?**
+> **Is the call site inside a code where `await` is legal?**
 
 That new definition also solves the following example:
 
@@ -154,7 +154,7 @@ Should `compute(i)` be `compute.__call__(i)` or `compute.__acall__(i)`?
 Here `compute(i)` is called from inside a generator expression. The immediate
 frame is a `CO_GENERATOR`, where `await` is not legal. The _immediate_ genexpr context is sync,
 then `asyncio.gather` would receive plain values instead of coroutines.
-However it whould not be correct, as "the call site **IS** inside a frame where `await` is legal".
+However it whould not be correct, as "the call site **IS** inside a code where `await` is legal".
 
 `acallable` walks up the call stack transparently past any `CO_GENERATOR` frames
 (sync genexprs and plain generators) until it finds some sync or async enclosing context.
