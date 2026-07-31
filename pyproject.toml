@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "acallable"
-version = "0.0.3"
+version = "0.1.0"
 authors = [
   { name="Alan Justino", email="alan.justino@yahoo.com.br" },
 ]
@@ -34,7 +34,7 @@ where = ["."]
 include = ["acallable*"]
 
 [tool.bumpversion]
-current_version = "0.0.3"
+current_version = "0.1.0"
 commit = true
 tag = true
 tag_name = "v{new_version}"
