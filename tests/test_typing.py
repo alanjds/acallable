@@ -86,3 +86,29 @@ def test_bound_method_call_typing():
     store = Store()
     result = Store.save(store, 'r')
     assert_type(result, None | Awaitable[None])
+
+
+# --- bound (instance-level) form: self is auto-bound via __get__ ---
+
+
+def test_bound_call_typing():
+    """store.save('r') dispatches sync/async -> None | Awaitable[None]."""
+    store = Store()
+    result = store.save('r')
+    assert_type(result, None | Awaitable[None])
+
+
+def test_bound_acall_property_typing():
+    """store.save.__acall__('r') -> Awaitable[None] (self auto-bound)."""
+    store = Store()
+    coro = store.save.__acall__('r')
+    assert_type(coro, Awaitable[None])
+    if isinstance(coro, Coroutine):
+        coro.close()
+
+
+def test_bound_sync_property_typing():
+    """store.save.sync('r') -> None (self auto-bound)."""
+    store = Store()
+    result = store.save.sync('r')
+    assert_type(result, None)
