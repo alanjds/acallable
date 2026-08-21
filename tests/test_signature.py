@@ -4,7 +4,10 @@
 # IDEs and static analyzers can offer autocomplete and so that
 # inspect.signature works at runtime.
 
+import asyncio
 import inspect
+
+import pytest
 
 from acallable import acallable
 
@@ -93,3 +96,74 @@ def test_unbound_method_signature():
     params = list(sig.parameters.values())
     assert [p.name for p in params] == ['self', 'record', 'force']
     assert params[0].annotation is inspect.Parameter.empty
+
+
+# --- bound method: __acall__ runtime usage (the edge case) ---
+#
+# Verifies that calling .__acall__ on a bound method auto-binds `self`
+# via the functools.partial in Acallable.__get__. Without this binding,
+# store.method.__acall__('x') would fail with:
+#   TypeError: missing 1 required positional argument: 'self'
+
+
+class ConfigStore:
+    """A method with a DEFAULT async wrapper (no explicit @method.acall).
+
+    Used to verify that __acall__ binds `self` even for the auto-generated
+    default async wrapper.
+    """
+
+    @acallable
+    def load(self, key: str) -> str:
+        self.last_sync_result = f'sync: {key}'
+        return f'sync: {key}'
+
+
+def test_bound_method_acall_direct_call_binds_self():
+    """Calling store.save.__acall__('rec') must auto-bind self."""
+    store = DataStore()
+    coro = store.save.__acall__('rec', force=True)
+    result = asyncio.run(coro)
+    assert result is None
+    assert store.last_async_result == 'async: rec'
+
+
+def test_bound_method_acall_default_wrapper_binds_self():
+    """Same edge case for the DEFAULT async wrapper (no explicit @fn.acall).
+
+    The auto-generated default wrapper must also have self pre-bound
+    when __acall__ is accessed via __get__ on an instance.
+    """
+    store = ConfigStore()
+    coro = store.load.__acall__('mykey')
+    result = asyncio.run(coro)
+    assert result == 'sync: mykey'
+    assert store.last_sync_result == 'sync: mykey'
+
+
+def test_bound_method_acall_default_wrapper_signature_self_removed():
+    """__acall__ signature on a bound method (default wrapper) has self stripped."""
+    store = ConfigStore()
+    sig = inspect.signature(store.load.__acall__)
+    assert list(sig.parameters) == ['key']
+
+
+async def _call_bound_load_in_async(store, key):
+    """Helper: calls store.load from within an async def (forces __acall__ dispatch)."""
+    await store.load(key)
+
+
+@pytest.mark.asyncio
+async def test_bound_method_call_async_context_dispatches_to_acall():
+    """Calling store.load('key') from async context dispatches to __acall__
+    with self already bound via the partial in __get__."""
+    store = ConfigStore()
+    await store.load('mykey')
+    assert store.last_sync_result == 'sync: mykey'
+
+
+def test_unbound_method_acall_signature_includes_self():
+    """At class level (unbound), __acall__ still carries 'self' in its signature."""
+    sig = inspect.signature(ConfigStore.load.__acall__)
+    params = list(sig.parameters.values())
+    assert [p.name for p in params] == ['self', 'key']

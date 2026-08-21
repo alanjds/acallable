@@ -136,7 +136,11 @@ class Acallable[**P, T](Callable[P, T | Awaitable[T]]):
         else:
             setattr(self._sync_func, name, value)
 
-    def __get__(self, instance, owner):
+    @overload
+    def __get__(self, instance: None, owner: type | None = None) -> Acallable[P, T]: ...
+    @overload
+    def __get__(self, instance: object, owner: type | None = None) -> Acallable[..., T]: ...
+    def __get__(self, instance, owner=None):
         """Descriptor protocol: bind to instance when accessed as a method."""
         if instance is None:
             return self
@@ -144,12 +148,14 @@ class Acallable[**P, T](Callable[P, T | Awaitable[T]]):
         # as the first argument of both sync and async implementations.
 
         # Let typecheckers happy
-        assert self._sync_func is not None
-        assert self._async_func is not None
+        sync_func = self._sync_func
+        async_func = self._async_func
+        assert sync_func is not None
+        assert async_func is not None
 
         bound = Acallable.__new__(Acallable)
-        bound._sync_func = functools.partial(self._sync_func, instance)
-        bound._async_func = functools.partial(self._async_func, instance)
+        bound._sync_func = functools.partial(sync_func, instance)  # ty:ignore
+        bound._async_func = functools.partial(async_func, instance)  # ty:ignore
         # Bound methods expose the remaining (post-self) signature.
         _sig = _safe_signature(bound._sync_func)
         if _sig is not None:
