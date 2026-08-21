@@ -44,7 +44,21 @@ def _is_async_context(frame):
     return False
 
 
-class Acallable[T](Callable):
+def _safe_signature(fn) -> inspect.Signature | None:
+    """Return inspect.signature(fn) or None when introspection fails.
+
+    Stored as the ``__signature__`` attribute so that tools like
+    ``inspect.signature`` and IDE autocompletion surface the real
+    parameters instead of ``(*args, **kwargs)`` coming from
+    ``Acallable.__call__``.
+    """
+    try:
+        return inspect.signature(fn)
+    except (TypeError, ValueError):
+        return None
+
+
+class Acallable[**P, T](Callable[P, T | Awaitable[T]]):
     """
     Functions and methods decorated with `@acallable` are `Acallable`s
 
@@ -52,12 +66,13 @@ class Acallable[T](Callable):
     When called on some sync context, uses `self.sync`
     When called on some async context, uses `self.__acall__`
     """
-    _sync_func: Callable[..., T] = None  # ty:ignore[invalid-assignment]
-    _async_func: Callable[..., Awaitable[T]] = None  # ty:ignore[invalid-assignment]
+    _sync_func: Callable[P, T] = None  # ty:ignore[invalid-assignment]
+    _async_func: Callable[P, Awaitable[T]] = None  # ty:ignore[invalid-assignment]
 
-    def __init__(self, fn: Callable[..., T]):
+    def __init__(self, fn: Callable[P, T]):
         # Default async as the wrapped sync
-        async def __acall__(*args, **kwargs) -> T:
+        @functools.wraps(fn)
+        async def __acall__(*args: P.args, **kwargs: P.kwargs) -> T:
             return fn(*args, **kwargs)
 
         if fn is None:
@@ -65,18 +80,23 @@ class Acallable[T](Callable):
 
         self._sync_func = fn
         self._async_func = __acall__
+        # Expose the wrapped function's real signature so that
+        # inspect.signature / IDE autocompletion see actual parameters.
+        _sig = _safe_signature(fn)
+        if _sig is not None:
+            object.__setattr__(self, '__signature__', _sig)
 
     @property
-    def sync(self) -> Callable[..., T]:
+    def sync(self) -> Callable[P, T]:
         """Always the synchronous (`def`) version of this Callable"""
         return self._sync_func
 
     @property
-    def __acall__(self) -> Callable[..., Awaitable[T]]:
+    def __acall__(self) -> Callable[P, Awaitable[T]]:
         """Always the asynchronous (`async def`) version of this Callable"""
         return self._async_func
 
-    def __call__(self, *args, **kwargs) ->  T | Awaitable[T]:
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T | Awaitable[T]:
         """Dispatches async or sync based on where it was called
 
         When called on some sync context, uses `self.sync`
@@ -87,7 +107,7 @@ class Acallable[T](Callable):
         else:
             return self.sync(*args, **kwargs)
 
-    def acall(self, fn: Callable[..., Awaitable[T]]) -> Acallable[T]:
+    def acall(self, fn: Callable[P, Awaitable[T]]) -> Acallable[P, T]:
         """Sets the __acall__ of this function. Used like `@property.set`::
 
             @acallable
@@ -130,6 +150,10 @@ class Acallable[T](Callable):
         bound = Acallable.__new__(Acallable)
         bound._sync_func = functools.partial(self._sync_func, instance)
         bound._async_func = functools.partial(self._async_func, instance)
+        # Bound methods expose the remaining (post-self) signature.
+        _sig = _safe_signature(bound._sync_func)
+        if _sig is not None:
+            object.__setattr__(bound, '__signature__', _sig)
         return bound
 
 
@@ -207,7 +231,7 @@ def _as_acallable_type[T: type](klass: T) -> T:
 @overload
 def acallable[T: type](obj: T) -> T: ...
 @overload
-def acallable[T](obj: Callable[..., T]) -> Acallable[T]: ...
+def acallable[**P, T](obj: Callable[P, T]) -> Acallable[P, T]: ...
 
 def acallable(obj):
     """Decorated callable dispatches `__call__` or `__acall__`
