@@ -6,6 +6,7 @@
 
 import asyncio
 import inspect
+from collections.abc import Coroutine
 
 import pytest
 
@@ -120,12 +121,13 @@ class ConfigStore:
 
 
 def test_bound_method_acall_direct_call_binds_self():
-    """Calling store.save.__acall__('rec') must auto-bind self."""
+    """Calling store.save.__acall__(...) must auto-bind self."""
     store = DataStore()
-    coro = store.save.__acall__('rec', force=True)
+    coro = store.save.__acall__({'k': 'v'}, force=True)
+    assert isinstance(coro, Coroutine)
     result = asyncio.run(coro)
     assert result is None
-    assert store.last_async_result == 'async: rec'
+    assert store.last_async_result == "async: {'k': 'v'}"
 
 
 def test_bound_method_acall_default_wrapper_binds_self():
@@ -136,6 +138,7 @@ def test_bound_method_acall_default_wrapper_binds_self():
     """
     store = ConfigStore()
     coro = store.load.__acall__('mykey')
+    assert isinstance(coro, Coroutine)
     result = asyncio.run(coro)
     assert result == 'sync: mykey'
     assert store.last_sync_result == 'sync: mykey'

@@ -6,7 +6,7 @@ import functools
 import inspect
 import sys
 from collections.abc import Awaitable, Callable
-from typing import overload
+from typing import Concatenate, Self, overload
 
 _ARE_ASYNC_FLAGS = inspect.CO_COROUTINE | inspect.CO_ASYNC_GENERATOR
 _IS_GENERATOR = inspect.CO_GENERATOR
@@ -58,6 +58,18 @@ def _safe_signature(fn) -> inspect.Signature | None:
         return None
 
 
+def _apply_wraps[**P2, T2](wrapper, fn: Callable[P2, T2]) -> None:
+    """Apply ``functools.wraps(fn)`` to ``wrapper``.
+
+    Lives at module level to be able to sidestep a ty's solver issue:
+    It breaks the `Concatenate[S, Q]` resolution in if `@functools.wraps`
+    is applied directly _inside_ the `__init__`.
+
+    Doing it here keeps ty happy :)
+    """
+    functools.wraps(fn)(wrapper)
+
+
 class Acallable[**P, T](Callable[P, T | Awaitable[T]]):
     """
     Functions and methods decorated with `@acallable` are `Acallable`s
@@ -71,12 +83,18 @@ class Acallable[**P, T](Callable[P, T | Awaitable[T]]):
 
     def __init__(self, fn: Callable[P, T]):
         # Default async as the wrapped sync
-        @functools.wraps(fn)
+        #
+        # @functools.wraps must NOT be applied directly here:
+        # ty's solver breaks the Concatenate decomposition in __get__.
+        # Use the `_apply_wraps` later instead.
         async def __acall__(*args: P.args, **kwargs: P.kwargs) -> T:
             return fn(*args, **kwargs)
 
         if fn is None:
             raise TypeError()
+
+        # Keep typecheckers happy.
+        _apply_wraps(__acall__, fn)
 
         self._sync_func = fn
         self._async_func = __acall__
@@ -107,7 +125,7 @@ class Acallable[**P, T](Callable[P, T | Awaitable[T]]):
         else:
             return self.sync(*args, **kwargs)
 
-    def acall(self, fn: Callable[P, Awaitable[T]]) -> Acallable[P, T]:
+    def acall[**P2](self, fn: Callable[P2, Awaitable[T]]) -> Self:
         """Sets the __acall__ of this function. Used like `@property.set`::
 
             @acallable
@@ -118,7 +136,10 @@ class Acallable[**P, T](Callable[P, T | Awaitable[T]]):
             async def func(...):
                 return 'called from some `async def`'
         """
-        self._async_func = fn
+        # Uses a method-scoped `P2` instead of the class `P`
+        # because ty's solver breaks the `Concatenate` otherwise
+        # We lose the cross-check on sync/async params, but it is life :)
+        self._async_func = fn  # ty:ignore[invalid-assignment]
         return self
 
     def __getattr__(self, name):
@@ -139,7 +160,9 @@ class Acallable[**P, T](Callable[P, T | Awaitable[T]]):
     @overload
     def __get__(self, instance: None, owner: type | None = None) -> Acallable[P, T]: ...
     @overload
-    def __get__(self, instance: object, owner: type | None = None) -> Acallable[..., T]: ...
+    def __get__[S, **Q](
+        self: 'Acallable[Concatenate[S, Q], T]', instance: S, owner: type | None = None
+    ) -> Acallable[Q, T]: ...
     def __get__(self, instance, owner=None):
         """Descriptor protocol: bind to instance when accessed as a method."""
         if instance is None:
@@ -154,8 +177,8 @@ class Acallable[**P, T](Callable[P, T | Awaitable[T]]):
         assert async_func is not None
 
         bound = Acallable.__new__(Acallable)
-        bound._sync_func = functools.partial(sync_func, instance)  # ty:ignore
-        bound._async_func = functools.partial(async_func, instance)  # ty:ignore
+        bound._sync_func = functools.partial(sync_func, instance)
+        bound._async_func = functools.partial(async_func, instance)
         # Bound methods expose the remaining (post-self) signature.
         _sig = _safe_signature(bound._sync_func)
         if _sig is not None:

@@ -45,14 +45,15 @@ def test_acall_property_returns_awaitable():
 
 # --- bound method .__acall__ typing ---
 #
-# At the class level, Store.save is an Acallable whose P ParamSpec
-# includes `self`, so we pass the instance explicitly:
-#   Store.save.__acall__(store, 'r')
+# Two access forms are covered:
 #
-# The *bound* form (store.save.__acall__('r')) auto-binds self at runtime
-# via __get__ + functools.partial — see test_signature.py for runtime
-# verification. Static typing of the bound form is a known limitation
-# because ParamSpec cannot express "P without the leading self".
+# 1. Class level: Store.save is an Acallable whose P ParamSpec includes
+#    `self`, so the instance is passed explicitly.
+# 2. Bound (instance) level: store.save goes through __get__, which
+#    pre-binds `self` via functools.partial and returns an Acallable
+#    whose P is decomposed to "everything except self" — expressed by
+#    the Concatenate[S, Q] self-type overload on __get__.
+
 
 
 class Store:
